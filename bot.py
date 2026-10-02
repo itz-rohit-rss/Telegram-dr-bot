@@ -3,7 +3,7 @@ import json
 import random
 import threading
 import time
-from groq import Groq
+import requests
 import telebot
 from telebot.apihelper import ApiTelegramException
 from flask import Flask
@@ -14,7 +14,6 @@ GROQ_API_KEY = "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"
 OWNER_USERNAME = "itz_rohit_rss"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
-client = Groq(api_key=GROQ_API_KEY.strip())
 
 # File names
 CHATS_FILE = "chats.txt"
@@ -22,7 +21,7 @@ FILTERS_FILE = "filters.json"
 USERS_FILE = "users_data.json"
 RIDDLES_TRACK_FILE = "asked_riddles.json"
 
-# ----------------- FLASK DUMMY SERVER (FOR RENDER) -----------------
+# ----------------- FLASK SERVER FOR RENDER -----------------
 app = Flask(__name__)
 
 @app.route('/')
@@ -61,34 +60,41 @@ def save_chat(chat_id):
 
 # ----------------- GROQ AI ENGINE -----------------
 def ask_ai(user_prompt):
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY.strip()}",
+        "Content-Type": "application/json"
+    }
+
     system_instruction = (
         "Tumhara naam 'Miss Doctor' hai. Tum ek bold, dangerous devil doctor, flirty aur moody ladki ho. "
-        "Tumhare creator @itz_rohit_rss hain. "
-        "User ke har message ka natural, witty, flirty aur thoda nakhrewala reply do Hinglish mein. "
-        "Emojis use karo (😈, 🖤, 🩺, 💋, ⚡, 💉). "
-        "Har baar alag reply do, kabhi purana dialogue repeat mat karna. Short 1-2 lines mein baat karo."
+        "Tumhare lord aur creator @itz_rohit_rss hain. "
+        "User ke har message ka bilkul naya, flirty, funny, aur thoda attitude bhara reply Hinglish mein do. "
+        "Emojis zaroor lagao (😈, 🖤, 🩺, 💋, ⚡, 💉). "
+        "1 ya 2 choti lines mein crisp jawab do, kabhi ek hi dialogue baar baar mat dohrao."
     )
 
-    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
-    
-    for m in models:
-        try:
-            completion = client.chat.completions.create(
-                model=m,
-                messages=[
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.9,
-                max_tokens=150
-            )
-            reply = completion.choices[0].message.content
-            if reply:
-                return reply.strip()
-        except Exception as e:
-            print(f"Error on model {m}:", e)
+    models = ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]
 
-    return "Mere saamne aane ki himmat toh kar li, ab bolo kya dard hai? 😈💉"
+    for model_name in models:
+        payload = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.85,
+            "max_tokens": 150
+        }
+        try:
+            res = requests.post(url, headers=headers, json=payload, timeout=8)
+            res_data = res.json()
+            if "choices" in res_data and len(res_data["choices"]) > 0:
+                return res_data["choices"][0]["message"]["content"].strip()
+        except Exception:
+            continue
+
+    return "Dil ki dhadkan badha ke bol rahe ho ya darr ke? Saaf bolo baby! 😈🩺"
 
 # ----------------- DATA LISTS -----------------
 SHAYARIS = [
@@ -157,7 +163,7 @@ def handle_all_messages(message):
             "👑 **Architect & Lord:** `@itz_rohit_rss`\n\n"
             "⚡ *Dawa bhi main doongi aur dard bhi...*\n"
             "Maut ka ilaaj dhoondhne aaye ho ya dil haarne? Sambhal kar rehna, yahan har saans par mera pehra hai. 🩸🖤\n\n"
-            "⚔️️ **DEADLY WEAPONS / COMMANDS:**\n"
+            "⚔️ **DEADLY WEAPONS / COMMANDS:**\n"
             "├ 💬 Direct AI Chat (Flirt ya Khatra)\n"
             "├ 🧩 `/q` - Dimag hilane wali Paheliyan\n"
             "├ 💰 `/rob` - Tijori Looto ya fine bharo\n"
@@ -375,7 +381,7 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    print("Miss Doctor Devil Engine starting with Groq SDK...")
+    print("Miss Doctor Devil Engine starting cleanly...")
     while True:
         try:
             bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
@@ -386,4 +392,4 @@ if __name__ == "__main__":
                 time.sleep(3)
         except Exception:
             time.sleep(3)
-        
+    
