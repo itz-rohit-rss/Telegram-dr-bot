@@ -18,12 +18,12 @@ DATA_FILE = "group_data.json"
 FILTERS_FILE = "filters.json"
 CHATS_FILE = "chats.txt"
 
-# ----------------- FLASK DUMMY SERVER (FOR RENDER 24/7) -----------------
+# ----------------- FLASK DUMMY SERVER (FOR RENDER) -----------------
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Supreme Group Ranking & Management Bot is Live 24/7!"
+    return "Supreme Group Ranking & Management Bot is Active 24/7!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -40,44 +40,46 @@ def load_json(file_path):
     return {}
 
 def save_json(file_path, data):
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Save error:", e)
 
 def save_chat(chat_id):
     active_chats = set()
     if os.path.exists(CHATS_FILE):
-        with open(CHATS_FILE, "r") as f:
-            active_chats = set(line.strip() for line in f if line.strip())
+        try:
+            with open(CHATS_FILE, "r") as f:
+                active_chats = set(line.strip() for line in f if line.strip())
+        except Exception:
+            pass
     if str(chat_id) not in active_chats:
-        with open(CHATS_FILE, "a") as f:
-            f.write(f"{chat_id}\n")
+        try:
+            with open(CHATS_FILE, "a") as f:
+                f.write(f"{chat_id}\n")
+        except Exception:
+            pass
 
 # ----------------- DATA LISTS -----------------
 SHAYARIS = [
     "Aapki aankhon mein ajeeb si kashish hai,\nLagta hai yeh dil aapka hi aashiq hai! ❤️✨",
     "Dhadkan ko bhi sambhal kar rakha karo,\nHar baar aashiqui se ilaaj nahi hota! 🙈🩺",
     "Mohabbat ka koi nasha hi alag hota hai,\nTum samne na ho toh dil bechain rehta hai! 🌹🥀",
-    "Hazaaron mehfilen hain aur laakhon mele hain,\nPar jahan tum nahi wahan hum bilkul akele hain! 🥺❤️",
-    "Teri saadgi ko dekh kar hi fida ho gaye,\nBolo ab kahan hum khud se juda ho gaye! 😘⚡"
+    "Hazaaron mehfilen hain aur laakhon mele hain,\nPar jahan tum nahi wahan hum bilkul akele hain! 🥺❤️"
 ]
 
 JOKES = [
     "Pappu: Yaar doctor ne mujhe aam khane se mana kiya hai.\nFriend: Kyu?\nPappu: Kyunki unka kehna hai ki main pehle se hi bohot mitha hoon! 😂🤣",
     "Teacher: Class me sabse shant kaun rehta hai?\nStudent: Sir, jiska phone silent mode par ho aur charging 100% ho! 😜😆",
-    "Biwi: Suniye ji, aap mere liye taare tod kar la sakte hain?\nPati: Pehle tu bartan dho le, taare baad me todunga! 💀🤣",
-    "Ek machhar ne doosre se kaha: 'Insaan kitne bewakoof hote hain, thappad apne aap ko maarte hain aur lagta hume hai!' 🦟😂"
-]
-
-FUN_STICKERS = [
-    "CAACAgIAAxkBAAEBQ5Fmz...", # Standard Telegram pack sticker fallbacks
+    "Biwi: Suniye ji, aap mere liye taare tod kar la sakte hain?\nPati: Pehle tu bartan dho le, taare baad me todunga! 💀🤣"
 ]
 
 MIRROR_EMOJIS = ["🔥", "❤️", "😈", "⚡", "✨", "👑", "👀", "😎", "💯", "🥀"]
 
-# ----------------- BACKGROUND SCHEDULER (HAR 2 GHANTE BAAD CONGRATULATION) -----------------
+# ----------------- AUTO RANKING SCHEDULER (HAR 2 GHANTE) -----------------
 def auto_ranking_announcer():
     while True:
-        # Har 2 ghante (7200 seconds) wait karega
         time.sleep(7200)
         try:
             group_data = load_json(DATA_FILE)
@@ -85,7 +87,6 @@ def auto_ranking_announcer():
                 if not users:
                     continue
 
-                # Sort user based on message counts
                 sorted_users = sorted(users.items(), key=lambda item: item[1].get("count", 0), reverse=True)
                 if not sorted_users or sorted_users[0][1].get("count", 0) == 0:
                     continue
@@ -101,17 +102,16 @@ def auto_ranking_announcer():
                     f"🎉 **C O N G R A T U L A T I O N S** 🎉\n\n"
                     f"👤 **Winner:** {user_tag}\n"
                     f"📛 **Name:** `{name}`\n"
-                    f"📊 **Total Messages:** `{total_msgs}` Sent in last 2 Hours!\n\n"
-                    "⚡ *Group ke Asli Sultan aap hi ho! Aise hi mahol banaye rakho!* 🥂🔥\n\n"
+                    f"📊 **Messages:** `{total_msgs}` Sent in last 2 Hours!\n\n"
+                    "⚡ *Group ke Asli Hero aap hi ho! Aise hi mahol banaye rakho!* 🥂🔥\n\n"
                     "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
                 )
                 
                 try:
                     bot.send_message(int(chat_id), congrats_message, parse_mode="Markdown")
                 except Exception as send_err:
-                    print(f"Error dropping auto ranking to {chat_id}:", send_err)
+                    print("Auto congrats error:", send_err)
 
-                # Announce karne ke baad count reset taaki agle 2 ghante ki fresh ranking ho
                 for uid in users:
                     users[uid]["count"] = 0
                 
@@ -119,7 +119,7 @@ def auto_ranking_announcer():
         except Exception as e:
             print("Auto ranking runner error:", e)
 
-# ----------------- WELCOME NEW MEMBER -----------------
+# ----------------- NEW MEMBER WELCOME -----------------
 @bot.message_handler(content_types=['new_chat_members'])
 def welcome_member(message):
     save_chat(message.chat.id)
@@ -132,13 +132,13 @@ def welcome_member(message):
         user_link = f"[{first_name}](tg://user?id={new_user.id})"
 
         welcome_text = (
-            "╭━━━━〔 ✨ 𝐖𝐄𝐋𝐂𝐎𝐌𝐄 𝐓𝐎 𝐓𝐇𝐄 𝐆𝐑𝐎𝐔𝐏 ✨ 〕━━━━╮\n\n"
+            "╭━━━━〔 ✨ 𝐖𝐄𝐋𝐂𝐎𝐌𝐄 ✨ 〕━━━━╮\n\n"
             f"👋 **Hey:** {user_link}\n"
             f"👤 **Username:** `{uname}`\n"
             f"🏠 **Group:** `{chat_title}`\n\n"
-            "🌟 *Humari mehfil me aapka tahe dil se swagat hai!*\n"
-            "Masti karo, baatein karo aur top active member banke ranking jeeto! 🥂👑\n\n"
-            "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
+            "🌟 *Swagat hai aapka humari mehfil me!*\n"
+            "Masti se chat karo aur ranking jeeto! 🥂👑\n\n"
+            "╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
         )
         bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
@@ -147,20 +147,21 @@ def welcome_member(message):
 def help_command(message):
     save_chat(message.chat.id)
     help_text = (
-        "╭━━━━〔 ⚡ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐁𝐎𝐓 𝐌𝐄𝐍𝐔 ⚡ 〕━━━━╮\n\n"
-        "👑 **RANKING & STATS:**\n"
-        "├ `/ranking` - Live Group Top Chatters dekho\n"
-        "├ Auto: Har 2 ghante me Winner ka announcement!\n\n"
-        "📢 **MANAGEMENT & FUN:**\n"
-        "├ `/tagall [msg]` - Group ke sabhi members ko tag karo\n"
-        "├ `/filter [word] [reply]` - Auto trigger set karo\n"
-        "├ `/stopfilter [word]` - Trigger delete karo\n"
-        "├ `/shayari` - Romantic Shayari suno\n"
-        "├ `/joke` - Mazedaar Chutkule suno\n\n"
-        "✨ **SMART REACTIONS:**\n"
+        "╭━━━━〔 ⚡ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐁𝐎𝐓 ⚡ 〕━━━━╮\n\n"
+        "👑 **RANKING SYSTEM:**\n"
+        "├ `/ranking` - Live Group Top Chatters\n"
+        "├ Auto: Har 2 ghante me Winner Alert!\n\n"
+        "📢 **COMMANDS:**\n"
+        "├ `/tagall [msg]` - Tag all admins/members\n"
+        "├ `/filter [word] [reply]` - Auto trigger set\n"
+        "├ `/stopfilter [word]` - Trigger remove\n"
+        "├ `/shayari` - Romantic Shayari\n"
+        "├ `/joke` - Mazedaar Chutkule\n\n"
+        "✨ **SMART AUTO-REPLY:**\n"
         "├ Shayari par 'Wah Wah' bolne par cute reply ❤️\n"
         "├ Joke par hasne par Thank you 😊\n"
-        "├ Emojis ka Emoji se & Sticker ka Sticker se reply\n"
+        "├ Sticker bhejo -> Sticker aayega\n"
+        "├ Emoji bhejo -> Emoji aayega\n"
         "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
     )
     bot.reply_to(message, help_text, parse_mode="Markdown")
@@ -173,56 +174,53 @@ def ranking_command(message):
     users = group_data.get(chat_id, {})
 
     if not users:
-        bot.reply_to(message, "📊 Abhi tak kisi ne koi message nahi bheja! Chat shuru karo babu! 💬")
+        bot.reply_to(message, "📊 Abhi tak kisi ne koi message nahi bheja! Chat shuru karo pehle! 💬")
         return
 
     sorted_users = sorted(users.items(), key=lambda item: item[1].get("count", 0), reverse=True)[:10]
 
-    leaderboard = "🏆 **LIVE GROUP LEADERBOARD (TOP CHATTERS)** 🏆\n\n"
+    leaderboard = "🏆 **LIVE GROUP LEADERBOARD** 🏆\n\n"
     medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
 
     for idx, (uid, info) in enumerate(sorted_users):
         name = info.get("name", "User")
-        uname = f"(@{info.get('username')})" if info.get('username') else ""
         count = info.get("count", 0)
         medal = medals[idx] if idx < len(medals) else "🔹"
-        leaderboard += f"{medal} `{name}` {uname} ➔ **{count} msgs**\n"
+        leaderboard += f"{medal} `{name}` ➔ **{count} msgs**\n"
 
-    leaderboard += "\n⏳ *Next Winner Crown Announcement 2 Ghante ke andar!* 🔥"
+    leaderboard += "\n⏳ *Next Winner Announcement har 2 ghante me!* 🔥"
     bot.reply_to(message, leaderboard, parse_mode="Markdown")
 
 @bot.message_handler(commands=['tagall'])
 def tagall_command(message):
     save_chat(message.chat.id)
     if message.chat.type not in ["group", "supergroup"]:
-        bot.reply_to(message, "⚠️ Ye command sirf group me chalegi!")
+        bot.reply_to(message, "⚠️ Ye command sirf group me kaam karti hai!")
         return
 
-    custom_text = message.text.replace("/tagall", "").strip() or "Sabhi hazir ho jao turant!"
+    custom_text = message.text.replace("/tagall", "").strip() or "Hajiri lagao sab log!"
     try:
         admins = bot.get_chat_administrators(message.chat.id)
         mentions = [f"[{admin.user.first_name}](tg://user?id={admin.user.id})" for admin in admins]
         tag_chunk = " ".join(mentions)
-
-        msg = f"📢 **ATTENTION EVERYONE** 📢\n\n💬 `{custom_text}`\n\n{tag_chunk}"
-        bot.send_message(message.chat.id, msg, parse_mode="Markdown")
+        bot.send_message(message.chat.id, f"📢 **ATTENTION EVERYONE** 📢\n\n💬 `{custom_text}`\n\n{tag_chunk}", parse_mode="Markdown")
     except Exception as e:
-        bot.reply_to(message, f"Kuch issue hua: {e}")
+        bot.reply_to(message, f"Error: {e}")
 
 @bot.message_handler(commands=['shayari'])
 def shayari_command(message):
-    bot.reply_to(message, f"🌹 **Miss Doctor Shayari:**\n\n{random.choice(SHAYARIS)}")
+    bot.reply_to(message, f"🌹 **Shayari:**\n\n{random.choice(SHAYARIS)}")
 
 @bot.message_handler(commands=['joke'])
 def joke_command(message):
-    bot.reply_to(message, f"🎭 **Aapke Liye Joke:**\n\n{random.choice(JOKES)}")
+    bot.reply_to(message, f"🎭 **Joke:**\n\n{random.choice(JOKES)}")
 
 @bot.message_handler(commands=['filter'])
 def add_filter(message):
     chat_id = str(message.chat.id)
     parts = message.text.split(maxsplit=2)
     if len(parts) < 3:
-        bot.reply_to(message, "⚠️ Usage: `/filter [keyword] [reply_message]`", parse_mode="Markdown")
+        bot.reply_to(message, "⚠️ Format: `/filter [keyword] [reply]`", parse_mode="Markdown")
         return
     keyword = parts[1].lower()
     reply_msg = parts[2]
@@ -232,14 +230,14 @@ def add_filter(message):
         filters[chat_id] = {}
     filters[chat_id][keyword] = reply_msg
     save_json(FILTERS_FILE, filters)
-    bot.reply_to(message, f"✅ Trigger set: Jab bhi koi `{keyword}` bolega, auto reply jayega!", parse_mode="Markdown")
+    bot.reply_to(message, f"✅ Trigger set: `{keyword}` par auto-reply activate ho gaya!", parse_mode="Markdown")
 
 @bot.message_handler(commands=['stopfilter'])
 def remove_filter(message):
     chat_id = str(message.chat.id)
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
-        bot.reply_to(message, "⚠️ Usage: `/stopfilter [keyword]`", parse_mode="Markdown")
+        bot.reply_to(message, "⚠️ Format: `/stopfilter [keyword]`", parse_mode="Markdown")
         return
     keyword = parts[1].lower()
 
@@ -247,23 +245,22 @@ def remove_filter(message):
     if chat_id in filters and keyword in filters[chat_id]:
         del filters[chat_id][keyword]
         save_json(FILTERS_FILE, filters)
-        bot.reply_to(message, f"🗑️ Trigger `{keyword}` delete kar diya gaya!", parse_mode="Markdown")
+        bot.reply_to(message, f"🗑️ Trigger `{keyword}` delete ho gaya!", parse_mode="Markdown")
     else:
         bot.reply_to(message, "❌ Aisa koi trigger exist nahi karta.")
 
-# ----------------- STICKER REPLY WITH STICKER -----------------
+# ----------------- STICKER HANDLER -----------------
 @bot.message_handler(content_types=['sticker'])
-def sticker_handler(message):
+def sticker_mirror(message):
     save_chat(message.chat.id)
-    # User ke bhejhe sticker ke response me sticker mirror karta hai
     try:
         bot.send_sticker(message.chat.id, message.sticker.file_id)
     except Exception:
         pass
 
-# ----------------- MAIN TEXT / REACTION / ANALYSER HANDLER -----------------
+# ----------------- GENERAL MESSAGE / REACTION TRACKER -----------------
 @bot.message_handler(func=lambda m: True, content_types=['text'])
-def message_analyser_and_react(message):
+def tracker_and_react(message):
     save_chat(message.chat.id)
     text = (message.text or "").strip()
     text_lower = text.lower()
@@ -272,11 +269,10 @@ def message_analyser_and_react(message):
     user_name = message.from_user.first_name
     username = message.from_user.username or ""
 
-    # Ignore command execution from counts
     if text.startswith("/"):
         return
 
-    # 1. MESSAGE COUNTER (2-HOUR RANKING TRACKER)
+    # 1. COUNTER UPDATE
     group_data = load_json(DATA_FILE)
     if chat_id not in group_data:
         group_data[chat_id] = {}
@@ -288,54 +284,59 @@ def message_analyser_and_react(message):
     group_data[chat_id][user_id]["username"] = username
     save_json(DATA_FILE, group_data)
 
-    # 2. AUTO FILTERS TRIGGER
+    # 2. AUTO FILTERS
     filters = load_json(FILTERS_FILE)
     chat_filters = filters.get(chat_id, {})
     if text_lower in chat_filters:
         bot.reply_to(message, chat_filters[text_lower])
         return
 
-    # 3. SHAYARI PAR 'WAH WAH' REACTION
+    # 3. WAH WAH REACTION
     wah_keywords = ["wah", "waah", "wah wah", "waah waah", "kya baat hai", "subhanallah", "gazab", "bohot khoob"]
     if any(k in text_lower for k in wah_keywords):
         bot.reply_to(message, "Thank you baby tum hi to samjhte ho mujhe 🙈❤️")
         return
 
-    # 4. JOKE PAR LAUGHING EMOJI REACTION
+    # 4. JOKE LAUGH REACTION
     laugh_emojis = ["😂", "🤣", "😆", "😹", "xd", "haha", "hahaha"]
     if any(e in text_lower for e in laugh_emojis):
         bot.reply_to(message, "Thank you 😊")
         return
 
-    # 5. SINGLE EMOJI KA REPLY EMOJI SE
+    # 5. EMOJI MIRROR
     if len(text) <= 2 and any(char in text for char in MIRROR_EMOJIS + ["😀", "😍", "😎", "🥺", "😡", "🤔"]):
         bot.reply_to(message, random.choice(MIRROR_EMOJIS))
         return
 
-# ----------------- BOT STARTUP -----------------
+# ----------------- MAIN RUNNER -----------------
 if __name__ == "__main__":
-    # Start web server for Render
-    threading.Thread(target=run_web, daemon=True).start()
+    # Web server run karein alag thread me
+    t_web = threading.Thread(target=run_web)
+    t_web.daemon = True
+    t_web.start()
 
-    # Start 2-hour Auto Congratulations Background Thread
-    threading.Thread(target=auto_ranking_announcer, daemon=True).start()
+    # Auto ranker run karein alag thread me
+    t_rank = threading.Thread(target=auto_ranking_announcer)
+    t_rank.daemon = True
+    t_rank.start()
 
-    # Clear Webhook
+    # Webhook hard delete taaki polling freeze na ho
     try:
-        requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=True", timeout=5)
-        print("Webhook cleared cleanly.")
+        requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=True", timeout=10)
+        print("Webhook cleared.")
     except Exception as e:
-        print("Webhook notice:", e)
+        print("Webhook delete issue:", e)
 
-    print("Supreme Ranking Bot is fully operational...")
+    print("Telegram Polling Engine starting now...")
+    
+    # Polling loop directly on main thread
     while True:
         try:
-            bot.polling(none_stop=True, interval=0, timeout=20)
+            bot.polling(none_stop=True, interval=0, timeout=15)
         except ApiTelegramException as e:
-            if e.error_code == 409:
-                time.sleep(5)
-            else:
-                time.sleep(2)
-        except Exception:
+            print("Telegram API Error:", e)
+            time.sleep(3)
+        except Exception as ex:
+            print("Crash prevented, restarting in 2s:", ex)
             time.sleep(2)
     
