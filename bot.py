@@ -9,8 +9,8 @@ from telebot.apihelper import ApiTelegramException
 from flask import Flask
 
 # ----------------- CONFIGURATION -----------------
-BOT_TOKEN = "8814355727:AAHZYDdWxsfZbKG78V8Mq-ZJlx4_FEYioxk"
-GROQ_API_KEY = "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"
+# New active token for @Miss_Dr_robot
+BOT_TOKEN = "8814355727:AAG7c-0teGiljwKq-liqCws1AoGGzH1feZY"
 OWNER_USERNAME = "itz_rohit_rss"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
@@ -20,12 +20,12 @@ FILTERS_FILE = "filters.json"
 USERS_FILE = "users_data.json"
 RIDDLES_TRACK_FILE = "asked_riddles.json"
 
-# ----------------- FLASK DUMMY SERVER (FOR RENDER) -----------------
+# ----------------- FLASK DUMMY SERVER (FOR RENDER 24/7) -----------------
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Miss Doctor Bot is Running Live 24/7!"
+    return "Miss Doctor Bot (@Miss_Dr_robot) is Running Live 24/7!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -57,17 +57,17 @@ def save_chat(chat_id):
         with open(CHATS_FILE, "a") as f:
             f.write(f"{chat_id}\n")
 
-# ----------------- AI ENGINE (MULTI-NODE FAST & STABLE) -----------------
+# ----------------- MULTI-NODE AI ENGINE -----------------
 def ask_ai(user_prompt):
     system_instruction = (
-        "Tumhara naam 'Miss Doctor' hai. Tum ek dangerous, bold devil doctor aur super flirty ladki ho. "
-        "Tumhare lord aur architect @itz_rohit_rss hain. "
-        "User ke har message ka bilkul natural, witty, thoda attitude aur flirty reply Hinglish mein do. "
+        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, dangerous devil doctor ladki aur super flirty ho. "
+        "Tumhare creator aur boss @itz_rohit_rss hain. "
+        "User ke har message ka natural, funny, thoda nakhrewala aur flirty jawab Hinglish mein do. "
         "Emojis zaroor use karo (😈, 🖤, 🩺, 💋, ⚡, 💉). "
-        "Short 1-2 lines mein crisp jawab do, kabhi same answer repeat mat karo."
+        "1-2 lines mein short aur crisp reply do, ek hi dialogue repeat mat karo."
     )
 
-    # 1. Primary AI Node (Fast JSON POST)
+    # Node 1: Fast AI POST
     try:
         url = "https://text.pollinations.ai/"
         payload = {
@@ -76,31 +76,30 @@ def ask_ai(user_prompt):
                 {"role": "user", "content": user_prompt}
             ],
             "model": "mistral",
-            "seed": random.randint(1, 99999)
+            "seed": random.randint(1, 999999)
         }
         res = requests.post(url, json=payload, timeout=20)
         if res.status_code == 200 and len(res.text.strip()) > 0:
             return res.text.strip()
     except Exception as e:
-        print("Node 1 Error:", e)
+        print("Node 1 error:", e)
 
-    # 2. Secondary AI Node (Direct GET Backup)
+    # Node 2: Backup AI GET
     try:
-        safe_prompt = requests.utils.quote(f"{system_instruction} User said: {user_prompt}")
-        b_url = f"https://text.pollinations.ai/{safe_prompt}"
+        encoded_prompt = requests.utils.quote(f"{system_instruction} User message: {user_prompt}")
+        b_url = f"https://text.pollinations.ai/{encoded_prompt}"
         res2 = requests.get(b_url, timeout=15)
         if res2.status_code == 200 and len(res2.text.strip()) > 0:
             return res2.text.strip()
     except Exception as e:
-        print("Node 2 Error:", e)
+        print("Node 2 error:", e)
 
-    # 3. Dynamic Fallbacks (Har baar alag line)
+    # Dynamic witty fallbacks (agar network slow ho)
     witty_fallbacks = [
-        "Aise ghoor ke mat dekho babu, nazar lag jayegi! 😈💋",
-        "Mera injection tayyar hai, bolo kahan dard ho raha hai? 💉🖤",
-        "Itna attitude kis baat ka? Miss Doctor ke saamne sab seedhe ho jate hain! ⚡🩺",
-        "Bolo na jaan, chup kyu ho gaye? Darr lag gaya kya? 😈🥀",
-        "Dhadkan sambhal ke rakho babu, treatment abhi baaki hai! 🩺🔥"
+        "Aise ghoor ke dekhoge toh dil ki bimari ho jayegi baby! 😈🩺",
+        "Mera injection ready hai, bolo dawa du ya thoda pyaar? 💉🖤",
+        "Itna kyu sharma rahe ho? Doctor se kuch nahi chupate! 😘⚡",
+        "Doctor Miss Doctor ke clinic me swagat hai, bataiye kya takleef hai? 😈💋"
     ]
     return random.choice(witty_fallbacks)
 
@@ -158,7 +157,7 @@ def handle_all_messages(message):
 
     # 2. Owner Protection Mention
     if f"@{OWNER_USERNAME}".lower() in text_lower:
-        bot.reply_to(message, "⚠️️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, unke kaam me dakhal mat do! 💀⚡", parse_mode="Markdown")
+        bot.reply_to(message, "⚠️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, unke kaam me dakhal mat do! 💀⚡", parse_mode="Markdown")
         return
 
     # 3. /start Command
@@ -167,8 +166,8 @@ def handle_all_messages(message):
             "╭━━━〔 𝕯𝕰𝖁𝕴𝕷 𝕮𝕷𝕴𝕹𝕴𝕮 〕━━━╮\n"
             "🕷️ **𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐓𝐨 𝐓𝐡𝐞 𝐃𝐚𝐫𝐤 𝐃𝐨𝐦𝐚𝐢𝐧** 🕷️\n\n"
             f"👤 **Hey Mortal:** `{user_name}`\n"
-            "🩺 **Name:** `MISS DOCTOR` (Devil Edition 😈)\n"
-            "👑 **Architect & Lord:** `@itz_rohit_rss`\n\n"
+            "🩺 **Name:** `MISS DOCTOR` (@Miss_Dr_robot 😈)\n"
+            "👑 **Lord & Creator:** `@itz_rohit_rss`\n\n"
             "⚡ *Dawa bhi main doongi aur dard bhi...*\n"
             "Maut ka ilaaj dhoondhne aaye ho ya dil haarne? Sambhal kar rehna, yahan har saans par mera pehra hai. 🩸🖤\n\n"
             "⚔️ **DEADLY WEAPONS / COMMANDS:**\n"
@@ -189,7 +188,7 @@ def handle_all_messages(message):
         bot.reply_to(message, f"⚡ Mere ek laute Baap aur Creator **@{OWNER_USERNAME}** hain! Unke samne sab jhukte hain. 👑💀", parse_mode="Markdown")
         return
 
-    # 5. /q Command
+    # 5. /q Command (Paheli)
     if text.startswith("/q") or text.startswith("/Q"):
         asked_data = load_json(RIDDLES_TRACK_FILE)
         asked_indices = asked_data.get(chat_id, [])
