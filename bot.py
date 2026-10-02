@@ -1,9 +1,9 @@
 import os
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import telebot
-import requests
 import time
+import requests
+import telebot
+from flask import Flask
 
 # ----------------- CONFIGURATION -----------------
 BOT_TOKEN = "8814355727:AAH2tcXn3kUYbHhWs1PvVEGGDXbW7UgEPjg"
@@ -13,6 +13,18 @@ OWNER_USERNAME = "itz_rohit_rss"
 bot = telebot.TeleBot(BOT_TOKEN)
 chats_file = "chats.txt"
 
+# ----------------- DUMMY FLASK WEB SERVER (PORT BIND FIX) -----------------
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Miss Doctor Bot is Running Live!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# ----------------- CHAT PERSISTENCE -----------------
 def load_chats():
     if os.path.exists(chats_file):
         with open(chats_file, "r") as f:
@@ -25,7 +37,7 @@ def save_chat(chat_id):
         with open(chats_file, "a") as f:
             f.write(f"{chat_id}\n")
 
-# ----------------- GEMINI AI -----------------
+# ----------------- GEMINI AI CALL -----------------
 def ask_gemini(user_prompt):
     if not GEMINI_API_KEY:
         return "Doctor saab clinic par hain, pehle API key lagao! 🩺"
@@ -65,7 +77,7 @@ def ask_gemini(user_prompt):
     except Exception:
         return "Network ne dhokha de diya babu, ruko thoda! 🥺"
 
-# ----------------- MESSAGE HANDLERS -----------------
+# ----------------- TELEGRAM HANDLERS -----------------
 @bot.message_handler(func=lambda message: True, content_types=['text', 'photo', 'sticker', 'new_chat_members'])
 def handle_all_messages(message):
     save_chat(message.chat.id)
@@ -81,7 +93,7 @@ def handle_all_messages(message):
         return
 
     if text_lower in ["/owner", "owner kaun hai", "who is owner", "owner", "admin"]:
-        bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️️")
+        bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️")
         return
 
     if text.startswith("/broadcast") or text.startswith("/Broadcast"):
@@ -92,7 +104,7 @@ def handle_all_messages(message):
 
         parts = text.split(maxsplit=1)
         if len(parts) < 2:
-            bot.reply_to(message, "⚠️️ Message sath mein likhein:\n`/broadcast hello`", parse_mode="Markdown")
+            bot.reply_to(message, "⚠️ Message sath mein likhein:\n`/broadcast hello`", parse_mode="Markdown")
             return
 
         broadcast_msg = parts[1]
@@ -127,17 +139,8 @@ def handle_all_messages(message):
         reply = ask_gemini(text)
         bot.reply_to(message, reply)
 
-# ----------------- DUMMY SERVER & POLLING -----------------
-class SimpleHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b"Miss Doctor Bot is Running!")
-
-def start_bot_polling():
+def start_polling():
     time.sleep(2)
-    print("Miss Doctor polling started...")
     while True:
         try:
             bot.infinity_polling(timeout=10, long_polling_timeout=5)
@@ -145,13 +148,10 @@ def start_bot_polling():
             print("Polling restart:", e)
             time.sleep(3)
 
-# Background me Telegram bot run hoga
-threading.Thread(target=start_bot_polling, daemon=True).start()
-
-# Main thread par Render ka HTTP server bind rahega taaki service crash na ho
+# ----------------- MAIN RUNNER -----------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), SimpleHandler)
-    print(f"Server listening on port {port}...")
-    server.serve_forever()
+    # Telegram bot background thread me chalega
+    threading.Thread(target=start_polling, daemon=True).start()
+    # Flask port bind turant karega taaki Render timeout na de
+    run_web()
         
