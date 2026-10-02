@@ -6,13 +6,13 @@ import requests
 
 # ----------------- CONFIGURATION -----------------
 BOT_TOKEN = "8814355727:AAH2tcXn3kUYbHhWs1PvVEGGDXbW7UgEPjg"
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"  # Agar Gemini key hai toh yahan rakhein
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"  # Yahan apni Gemini API Key paste karein
 
 OWNER_USERNAME = "itz_rohit_rss"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Chats aur Users track karne ke liye set
+# Chats aur Users track karne ke liye file
 chats_file = "chats.txt"
 
 def load_chats():
@@ -26,6 +26,52 @@ def save_chat(chat_id):
     if str(chat_id) not in active_chats:
         with open(chats_file, "a") as f:
             f.write(f"{chat_id}\n")
+
+# ----------------- GEMINI AI (FLIRT, DRAMA, MOODS) -----------------
+def ask_gemini(user_prompt):
+    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
+        return "Doctor saab clinic par hain, pehle API key lagao! 🩺"
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    
+    system_instruction = (
+        "Tumhara naam 'Miss Doctor' hai. Tum ek bohot hi charming, flirty, thodi nautanki, "
+        "aur moody ladki ho jo Telegram par chat karti hai. "
+        "Jab koi pyaar se baat kare toh full flirt aur pyaar se reply karo. "
+        "Jab koi tang kare ya badtameezi kare toh nakhre dikhao aur gussa (cute anger) ho jao. "
+        "Agar koi emotional ya sad baat kare toh rone ka drama karo aur emotional ho jao. "
+        "Har mood ke hisaab se emojis use karo (😘, 🙈, 🥺, 😡, 💔, 🩺, 💋, 😭). "
+        "User ke sath bilkul girlfriend/crush ki tarah desi Hindi/Hinglish mein natural chat karo. "
+        "Replies ko chat style mein 1 se 3 lines ke andar compact rakho."
+    )
+    
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": f"{system_instruction}\n\nUser: {user_prompt}"}
+                ]
+            }
+        ],
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
+        ]
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
+        data = response.json()
+        if "candidates" in data and len(data["candidates"]) > 0:
+            candidate = data["candidates"][0]
+            if "content" in candidate and "parts" in candidate["content"]:
+                return candidate["content"]["parts"][0]["text"]
+        return "Uff, mood kharab kar diya mera... jao baad mein aana! 😤💔"
+    except Exception:
+        return "Network ne dhokha de diya babu, ruko thoda! 🥺"
 
 # ----------------- DUMMY SERVER FOR RENDER -----------------
 class SimpleHandler(BaseHTTPRequestHandler):
@@ -42,59 +88,74 @@ def run_server():
 
 threading.Thread(target=run_server, daemon=True).start()
 
-# ----------------- CHAT TRACKER MIDDLEWARE -----------------
+# ----------------- MESSAGE HANDLERS -----------------
 @bot.message_handler(func=lambda message: True, content_types=['text', 'photo', 'sticker', 'new_chat_members'])
 def handle_all_messages(message):
     save_chat(message.chat.id)
 
-    # 1. Agar koi @itz_rohit_rss mention kare
-    if message.text and f"@{OWNER_USERNAME}".lower() in message.text.lower():
+    if not message.text:
+        return
+
+    text = message.text.strip()
+    text_lower = text.lower()
+
+    # 1. Mention Reply: @itz_rohit_rss
+    if f"@{OWNER_USERNAME}".lower() in text_lower:
         bot.reply_to(message, "Sir busy hain abhi!")
         return
 
-    # 2. Owner ke baare mein poochna (/owner ya text query)
-    if message.text:
-        text_lower = message.text.lower()
-        if text_lower in ["/owner", "owner kaun hai", "who is owner", "owner", "admin"]:
-            bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️")
-            return
+    # 2. Owner Info Query
+    if text_lower in ["/owner", "owner kaun hai", "who is owner", "owner", "admin"]:
+        bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️")
+        return
 
-    # 3. Broadcast Command (Sirf Owner ke liye)
-    if message.text and (message.text.startswith("/broadcast") or message.text.startswith("/Broadcast")):
-        # Check karein agar sender owner hai
+    # 3. Broadcast Command (Owner Only)
+    if text.startswith("/broadcast") or text.startswith("/Broadcast"):
         sender_username = (message.from_user.username or "").lower()
         if sender_username != OWNER_USERNAME.lower():
-            bot.reply_to(message, "❌ Ye command sirf mere owner @itz_rohit_rss use kar sakte hain!")
+            bot.reply_to(message, f"❌ Ye command sirf mere owner @{OWNER_USERNAME} use kar sakte hain!")
             return
 
-        # Broadcast text nikalna
-        parts = message.text.split(maxsplit=1)
+        parts = text.split(maxsplit=1)
         if len(parts) < 2:
-            bot.reply_to(message, "⚠️ Message likhein, jaise:\n`/broadcast join please`", parse_mode="Markdown")
+            bot.reply_to(message, "⚠️ Message sath mein likhein, jaise:\n`/broadcast join please`", parse_mode="Markdown")
             return
 
         broadcast_msg = parts[1]
         all_chats = load_chats()
         success_count = 0
 
-        status_msg = bot.reply_to(message, f"📢 Broadcast start ho raha hai {len(all_chats)} chats mein...")
+        status_msg = bot.reply_to(message, f"📢 Broadcast shuru ho raha hai {len(all_chats)} chats mein...")
 
         for cid in all_chats:
             try:
                 bot.send_message(cid, broadcast_msg)
                 success_count += 1
             except Exception:
-                pass  # Blocked / Kicked chats ignore ho jayenge
+                pass
 
-        bot.edit_message_text(f"✅ Broadcast complete!\n{success_count} chats/groups tak message pahunch gaya.", 
-                              chat_id=message.chat.id, message_id=status_msg.message_id)
+        bot.edit_message_text(
+            f"✅ Broadcast complete!\n{success_count} chats/groups tak message gaya.",
+            chat_id=message.chat.id,
+            message_id=status_msg.message_id
+        )
         return
 
-    # 4. Normal Start / Help
-    if message.text.startswith("/start"):
-        bot.reply_to(message, "Hello! Main Miss Doctor hoon. Main groups manage kar sakti hoon aur fun baatein bhi! 🩺✨")
+    # 4. Start Command
+    if text.startswith("/start"):
+        bot.reply_to(message, "Hii baby! Main Miss Doctor hoon 🩺. Aao baatein karein, kya chal raha hai? 😘")
+        return
+
+    # 5. AI Chatting (Private DM ya Mention/Reply in groups)
+    is_private = message.chat.type == "private"
+    is_reply_to_bot = bool(message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id)
+    bot_called = any(name in text_lower for name in ["doctor", "miss doctor", "bot", "babu", "baby"])
+
+    if is_private or is_reply_to_bot or bot_called:
+        bot.send_chat_action(message.chat.id, 'typing')
+        ai_reply = ask_gemini(text)
+        bot.reply_to(message, ai_reply)
 
 # ----------------- START POLLING -----------------
 print("Miss Doctor LIVE on Render Free Tier...")
 bot.infinity_polling(skip_pending=True)
-
