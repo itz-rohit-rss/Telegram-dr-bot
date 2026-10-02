@@ -43,10 +43,10 @@ def ask_gemini(user_prompt):
     if not GEMINI_API_KEY:
         return "Doctor saab clinic par hain, pehle API key lagao! 🩺"
     
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+    # Google REST API endpoint
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     headers = {
-        "Content-Type": "application/json",
-        "X-goog-api-key": GEMINI_API_KEY
+        "Content-Type": "application/json"
     }
     
     system_instruction = (
@@ -68,15 +68,22 @@ def ask_gemini(user_prompt):
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=12)
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
         data = response.json()
+        
+        # Agar Google API koi error de toh render logs me dikhega
+        if "error" in data:
+            print("Gemini API Error:", data["error"])
+            return f"API Error: {data['error'].get('message', 'Key issue')}"
+
         if "candidates" in data and len(data["candidates"]) > 0:
             candidate = data["candidates"][0]
             if "content" in candidate and "parts" in candidate["content"]:
                 return candidate["content"]["parts"][0]["text"]
+                
         return "Uff, mood kharab kar diya mera... jao baad mein aana! 😤💔"
     except Exception as e:
-        print("Gemini API error:", e)
+        print("Gemini Network Error:", e)
         return "Network ne dhokha de diya babu, ruko thoda! 🥺"
 
 # ----------------- MESSAGE HANDLERS -----------------
@@ -145,31 +152,31 @@ def handle_all_messages(message):
         reply = ask_gemini(text)
         bot.reply_to(message, reply)
 
-# ----------------- MAIN RUNNER WITH CONFLICT AUTO-HEAL -----------------
+# ----------------- MAIN RUNNER -----------------
 if __name__ == "__main__":
-    # 1. Flask server background mein turant port open karega (Render timeout se bachega)
+    # Render port bind ke liye Flask background thread me start hoga
     threading.Thread(target=run_web, daemon=True).start()
     
-    # 2. Telegram webhook clean karo taaki purani ghost requests drop ho jayein
+    # Old webhook clean karein
     try:
         bot.remove_webhook()
-        print("Webhook cleared successfully.")
+        print("Webhook cleared.")
     except Exception as e:
-        print("Webhook clear note:", e)
+        print("Webhook note:", e)
 
-    # 3. Conflict Exception Handler Loop: agar clash ho bhi toh script rukegi nahi, reconnect karegi
-    print("Starting Miss Doctor Polling Engine...")
+    # Polling engine
+    print("Miss Doctor Polling Engine starting...")
     while True:
         try:
             bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
         except ApiTelegramException as e:
             if e.error_code == 409:
-                print("Telegram Conflict detected (old instance closing). Retrying in 5 seconds...")
+                print("Telegram Conflict (waiting 5 seconds)...")
                 time.sleep(5)
             else:
-                print(f"Telegram API Exception: {e}. Retrying in 3 seconds...")
+                print(f"Telegram API Exception: {e}")
                 time.sleep(3)
         except Exception as err:
-            print(f"Unexpected error: {err}. Retrying in 3 seconds...")
+            print(f"Unexpected error: {err}")
             time.sleep(3)
     
