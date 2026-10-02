@@ -3,7 +3,7 @@ import json
 import random
 import threading
 import time
-import requests
+from groq import Groq
 import telebot
 from telebot.apihelper import ApiTelegramException
 from flask import Flask
@@ -14,6 +14,7 @@ GROQ_API_KEY = "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"
 OWNER_USERNAME = "itz_rohit_rss"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
+client = Groq(api_key=GROQ_API_KEY.strip())
 
 # File names
 CHATS_FILE = "chats.txt"
@@ -60,43 +61,34 @@ def save_chat(chat_id):
 
 # ----------------- GROQ AI ENGINE -----------------
 def ask_ai(user_prompt):
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY.strip()}",
-        "Content-Type": "application/json"
-    }
-
     system_instruction = (
-        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, deadly devil, charming aur flirty ladki ho. "
-        "Tum @itz_rohit_rss ki banayi hui dangerous doctor ho. "
-        "Desi Hinglish mein har baat ka witty, flirty, thoda nakhre aur thoda attitude bhara reply do. "
-        "Har baat ka alag aur smart answer do. Emojis use karo (😈, 🖤, 🩺, 💋, ⚡). "
-        "1-3 lines me baat karo aur kabhi same line repeat mat karo."
+        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, dangerous devil doctor, flirty aur moody ladki ho. "
+        "Tumhare creator @itz_rohit_rss hain. "
+        "User ke har message ka natural, witty, flirty aur thoda nakhrewala reply do Hinglish mein. "
+        "Emojis use karo (😈, 🖤, 🩺, 💋, ⚡, 💉). "
+        "Har baar alag reply do, kabhi purana dialogue repeat mat karna. Short 1-2 lines mein baat karo."
     )
 
-    models_to_try = ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]
-
-    for model_name in models_to_try:
-        payload = {
-            "model": model_name,
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_prompt}
-            ],
-            "temperature": 0.85,
-            "max_tokens": 150
-        }
-
+    models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]
+    
+    for m in models:
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
-            data = response.json()
-            if "choices" in data and len(data["choices"]) > 0:
-                return data["choices"][0]["message"]["content"].strip()
-            print(f"Groq {model_name} issue:", data)
+            completion = client.chat.completions.create(
+                model=m,
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.9,
+                max_tokens=150
+            )
+            reply = completion.choices[0].message.content
+            if reply:
+                return reply.strip()
         except Exception as e:
-            print(f"Groq {model_name} exception:", e)
+            print(f"Error on model {m}:", e)
 
-    return "Dil ki dhadkan badha ke bol rahe ho ya darr ke? Saaf bolo baby! 😈🩺"
+    return "Mere saamne aane ki himmat toh kar li, ab bolo kya dard hai? 😈💉"
 
 # ----------------- DATA LISTS -----------------
 SHAYARIS = [
@@ -104,7 +96,7 @@ SHAYARIS = [
     "Dhadkan ko bhi sambhal kar rakha karo,\nHar baar injection se ilaaj nahi hota! 💉🙈",
     "Dil ka operation toh kar diya humne,\nPar marz yeh nikla ki tum par hi fida ho gaye! ❤️💋",
     "Nazar mili toh bukhar chadha diya tumne,\nBolo ab dawa kya dega yeh haseen doctor? 🥺🩺",
-    "Hum toh aate the tumhari nabz check karne,\nTumne toh seene ki dhadkan hi chura li! 🙈❤"
+    "Hum toh aate the tumhari nabz check karne,\nTumne toh seene ki dhadkan hi chura li! 🙈❤️"
 ]
 
 RANDOM_TAG_WORDS = [
@@ -152,7 +144,7 @@ def handle_all_messages(message):
 
     # 2. Owner Protection Mention
     if f"@{OWNER_USERNAME}".lower() in text_lower:
-        bot.reply_to(message, "⚠️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, zyada ungli ki toh system hila doongi! 💀⚡", parse_mode="Markdown")
+        bot.reply_to(message, "⚠️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, unke kaam me dakhal mat do! 💀⚡", parse_mode="Markdown")
         return
 
     # 3. /start Command
@@ -383,7 +375,7 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    print("Miss Doctor Devil Engine starting with Groq...")
+    print("Miss Doctor Devil Engine starting with Groq SDK...")
     while True:
         try:
             bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
@@ -394,4 +386,4 @@ if __name__ == "__main__":
                 time.sleep(3)
         except Exception:
             time.sleep(3)
-            
+        
