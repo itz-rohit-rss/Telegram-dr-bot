@@ -8,7 +8,7 @@ from flask import Flask
 
 # ----------------- CONFIGURATION -----------------
 BOT_TOKEN = "8814355727:AAG7c-0teGiljwKq-liqCws1AoGGzH1feZY"
-GEMINI_API_KEY = "AQ.Ab8RN6Ii6xTKce13KWXTvvIGovgkbVixDckeT_rbY84mjtQt5w"
+GEMINI_API_KEY = "AQ.Ab8RN6LyIC-GOOh2p_xY9VvRJknwEjHM3LbNrheR_rSqv24UDw"
 OWNER_USERNAME = "itz_rohit_rss"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
@@ -25,7 +25,7 @@ def run_web():
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, use_reloader=False)
 
-# ----------------- CHAT STORAGE -----------------
+# ----------------- CHAT PERSISTENCE -----------------
 def load_chats():
     if os.path.exists(chats_file):
         with open(chats_file, "r") as f:
@@ -43,10 +43,10 @@ def ask_gemini(user_prompt):
     if not GEMINI_API_KEY:
         return "Doctor saab clinic par hain, pehle API key lagao! 🩺"
     
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     headers = {
         "Content-Type": "application/json",
-        "X-goog-api-key": GEMINI_API_KEY
+        "x-goog-api-key": GEMINI_API_KEY
     }
     
     system_instruction = (
@@ -82,24 +82,27 @@ def ask_gemini(user_prompt):
                 
         return "Uff, mood kharab kar diya mera... jao baad mein aana! 😤💔"
     except Exception as e:
-        print("Gemini Exception:", e)
+        print("Gemini Network Error:", e)
         return "Network ne dhokha de diya babu, ruko thoda! 🥺"
 
-# ----------------- MESSAGE HANDLERS -----------------
+# ----------------- TELEGRAM HANDLERS -----------------
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def handle_all_messages(message):
     save_chat(message.chat.id)
     text = (message.text or "").strip()
     text_lower = text.lower()
 
+    # 1. Owner mention check
     if f"@{OWNER_USERNAME}".lower() in text_lower:
         bot.reply_to(message, "Sir busy hain abhi!")
         return
 
+    # 2. Owner command
     if text_lower in ["/owner", "owner kaun hai", "who is owner", "owner", "admin"]:
         bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️")
         return
 
+    # 3. Broadcast command
     if text.startswith("/broadcast") or text.startswith("/Broadcast"):
         sender_username = (message.from_user.username or "").lower()
         if sender_username != OWNER_USERNAME.lower():
@@ -130,10 +133,12 @@ def handle_all_messages(message):
         )
         return
 
+    # 4. Start command
     if text.startswith("/start"):
         bot.reply_to(message, "Hii baby! Main Miss Doctor hoon 🩺. Aao baatein karein, kya chal raha hai? 😘")
         return
 
+    # 5. AI Chat
     is_private = message.chat.type == "private"
     is_reply_to_bot = bool(message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id)
     bot_called = any(name in text_lower for name in ["doctor", "miss doctor", "bot", "babu", "baby"])
@@ -153,8 +158,8 @@ if __name__ == "__main__":
     try:
         bot.remove_webhook()
         print("Webhook cleared.")
-    except Exception as e:
-        print("Webhook note:", e)
+    except Exception:
+        pass
 
     print("Miss Doctor Polling Engine starting...")
     while True:
@@ -162,9 +167,10 @@ if __name__ == "__main__":
             bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
         except ApiTelegramException as e:
             if e.error_code == 409:
+                print("Conflict waiting 5 seconds...")
                 time.sleep(5)
             else:
                 time.sleep(3)
-        except Exception as err:
+        except Exception:
             time.sleep(3)
-        
+            
