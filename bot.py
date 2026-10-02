@@ -3,6 +3,7 @@ import threading
 import time
 import requests
 import telebot
+from telebot.apihelper import ApiTelegramException
 from flask import Flask
 
 # ----------------- CONFIGURATION -----------------
@@ -13,12 +14,12 @@ OWNER_USERNAME = "itz_rohit_rss"
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 chats_file = "chats.txt"
 
-# ----------------- FLASK DUMMY SERVER (RENDER PORT BIND) -----------------
+# ----------------- FLASK DUMMY SERVER (FOR RENDER) -----------------
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Miss Doctor Bot is Running Live!"
+    return "Miss Doctor Bot is Live and Healthy!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -144,16 +145,31 @@ def handle_all_messages(message):
         reply = ask_gemini(text)
         bot.reply_to(message, reply)
 
-# ----------------- RUNNERS -----------------
+# ----------------- MAIN RUNNER WITH CONFLICT AUTO-HEAL -----------------
 if __name__ == "__main__":
-    # Flask ko alag thread me chalao taaki main thread polling ko block na kare
+    # 1. Flask server background mein turant port open karega (Render timeout se bachega)
     threading.Thread(target=run_web, daemon=True).start()
     
-    print("Miss Doctor polling starting in main thread...")
+    # 2. Telegram webhook clean karo taaki purani ghost requests drop ho jayein
+    try:
+        bot.remove_webhook()
+        print("Webhook cleared successfully.")
+    except Exception as e:
+        print("Webhook clear note:", e)
+
+    # 3. Conflict Exception Handler Loop: agar clash ho bhi toh script rukegi nahi, reconnect karegi
+    print("Starting Miss Doctor Polling Engine...")
     while True:
         try:
-            bot.polling(none_stop=True, interval=0, timeout=20)
+            bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
+        except ApiTelegramException as e:
+            if e.error_code == 409:
+                print("Telegram Conflict detected (old instance closing). Retrying in 5 seconds...")
+                time.sleep(5)
+            else:
+                print(f"Telegram API Exception: {e}. Retrying in 3 seconds...")
+                time.sleep(3)
         except Exception as err:
-            print("Polling crash recovered:", err)
+            print(f"Unexpected error: {err}. Retrying in 3 seconds...")
             time.sleep(3)
     
