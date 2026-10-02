@@ -4,7 +4,8 @@ from telebot import types
 import random, time, threading, requests, html
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-BOT_TOKEN = "8814355727:AAHdEPrS0NVXqbzUMXKtxNU-l6pycYu9910"
+BOT_TOKEN = "8814355727:AAH2tcXn3kUYbHhWs1PvVEGGDXbW7UgEPjg"
+
 GEMINI_API_KEY = "AQ.Ab8RN6L3iQJ37dKJW2ui02GayE6_F__ARE3zAYo16Y3XpNO3Hg"
 
 bot = telebot.TeleBot(BOT_TOKEN)
