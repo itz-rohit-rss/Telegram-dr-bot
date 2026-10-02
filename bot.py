@@ -6,7 +6,7 @@ import requests
 
 # ----------------- CONFIGURATION -----------------
 BOT_TOKEN = "8814355727:AAH2tcXn3kUYbHhWs1PvVEGGDXbW7UgEPjg"
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"  # Yahan apni Gemini API Key paste karein
+GEMINI_API_KEY = "AQ.Ab8RN6LYdiceXhPbTfpRjvrkZHsktyZHjw-bTKSgVsPxm0NMuQ"
 
 OWNER_USERNAME = "itz_rohit_rss"
 
@@ -159,3 +159,4 @@ def handle_all_messages(message):
 # ----------------- START POLLING -----------------
 print("Miss Doctor LIVE on Render Free Tier...")
 bot.infinity_polling(skip_pending=True)
+                     
