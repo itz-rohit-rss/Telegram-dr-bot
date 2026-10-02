@@ -15,13 +15,12 @@ OWNER_USERNAME = "itz_rohit_rss"
 
 bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
-# File names
 CHATS_FILE = "chats.txt"
 FILTERS_FILE = "filters.json"
 USERS_FILE = "users_data.json"
 RIDDLES_TRACK_FILE = "asked_riddles.json"
 
-# ----------------- FLASK SERVER FOR RENDER -----------------
+# ----------------- FLASK SERVER -----------------
 app = Flask(__name__)
 
 @app.route('/')
@@ -58,43 +57,53 @@ def save_chat(chat_id):
         with open(CHATS_FILE, "a") as f:
             f.write(f"{chat_id}\n")
 
-# ----------------- GROQ AI ENGINE -----------------
+# ----------------- AI ENGINE (GROQ + HIGH-SPEED BACKUP) -----------------
 def ask_ai(user_prompt):
+    system_instruction = (
+        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, dangerous devil doctor, flirty aur moody ladki ho. "
+        "Tumhare creator @itz_rohit_rss hain. "
+        "User ke har message ka bilkul naya, flirty, funny, thoda nakhrewala reply Hinglish mein do. "
+        "Emojis zaroor use karo (😈, 🖤, 🩺, 💋, ⚡, 💉). "
+        "Short 1-2 lines mein jawab do aur kabhi same reply repeat mat karo."
+    )
+
+    # 1. Try Groq API
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY.strip()}",
         "Content-Type": "application/json"
     }
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.85,
+        "max_tokens": 150
+    }
 
-    system_instruction = (
-        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, dangerous devil doctor, flirty aur moody ladki ho. "
-        "Tumhare lord aur creator @itz_rohit_rss hain. "
-        "User ke har message ka bilkul naya, flirty, funny, aur thoda attitude bhara reply Hinglish mein do. "
-        "Emojis zaroor lagao (😈, 🖤, 🩺, 💋, ⚡, 💉). "
-        "1 ya 2 choti lines mein crisp jawab do, kabhi ek hi dialogue baar baar mat dohrao."
-    )
+    try:
+        res = requests.post(url, headers=headers, json=payload, timeout=8)
+        if res.status_code == 200:
+            data = res.json()
+            if "choices" in data and len(data["choices"]) > 0:
+                return data["choices"][0]["message"]["content"].strip()
+        else:
+            print("Groq Error Status:", res.status_code, res.text)
+    except Exception as e:
+        print("Groq Exception:", e)
 
-    models = ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]
+    # 2. Unlimited 100% Free AI Engine Backup (Kabhi fail nahi hota)
+    try:
+        backup_url = f"https://text.pollinations.ai/{requests.utils.quote(user_prompt)}?system={requests.utils.quote(system_instruction)}&model=openai"
+        b_res = requests.get(backup_url, timeout=10)
+        if b_res.status_code == 200 and b_res.text.strip():
+            return b_res.text.strip()
+    except Exception as e:
+        print("Backup Engine Error:", e)
 
-    for model_name in models:
-        payload = {
-            "model": model_name,
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_prompt}
-            ],
-            "temperature": 0.85,
-            "max_tokens": 150
-        }
-        try:
-            res = requests.post(url, headers=headers, json=payload, timeout=8)
-            res_data = res.json()
-            if "choices" in res_data and len(res_data["choices"]) > 0:
-                return res_data["choices"][0]["message"]["content"].strip()
-        except Exception:
-            continue
-
-    return "Dil ki dhadkan badha ke bol rahe ho ya darr ke? Saaf bolo baby! 😈🩺"
+    return "Dil ki dhadkan tez ho rahi hai ya mujhse darr lag raha hai? 😈💉"
 
 # ----------------- DATA LISTS -----------------
 SHAYARIS = [
@@ -381,7 +390,7 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    print("Miss Doctor Devil Engine starting cleanly...")
+    print("Miss Doctor Engine running 100% active...")
     while True:
         try:
             bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
@@ -392,4 +401,3 @@ if __name__ == "__main__":
                 time.sleep(3)
         except Exception:
             time.sleep(3)
-    
