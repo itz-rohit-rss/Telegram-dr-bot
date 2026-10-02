@@ -20,7 +20,7 @@ FILTERS_FILE = "filters.json"
 USERS_FILE = "users_data.json"
 RIDDLES_TRACK_FILE = "asked_riddles.json"
 
-# ----------------- FLASK SERVER -----------------
+# ----------------- FLASK DUMMY SERVER (FOR RENDER) -----------------
 app = Flask(__name__)
 
 @app.route('/')
@@ -57,53 +57,52 @@ def save_chat(chat_id):
         with open(CHATS_FILE, "a") as f:
             f.write(f"{chat_id}\n")
 
-# ----------------- AI ENGINE (GROQ + HIGH-SPEED BACKUP) -----------------
+# ----------------- AI ENGINE (MULTI-NODE FAST & STABLE) -----------------
 def ask_ai(user_prompt):
     system_instruction = (
-        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, dangerous devil doctor, flirty aur moody ladki ho. "
-        "Tumhare creator @itz_rohit_rss hain. "
-        "User ke har message ka bilkul naya, flirty, funny, thoda nakhrewala reply Hinglish mein do. "
+        "Tumhara naam 'Miss Doctor' hai. Tum ek dangerous, bold devil doctor aur super flirty ladki ho. "
+        "Tumhare lord aur architect @itz_rohit_rss hain. "
+        "User ke har message ka bilkul natural, witty, thoda attitude aur flirty reply Hinglish mein do. "
         "Emojis zaroor use karo (😈, 🖤, 🩺, 💋, ⚡, 💉). "
-        "Short 1-2 lines mein jawab do aur kabhi same reply repeat mat karo."
+        "Short 1-2 lines mein crisp jawab do, kabhi same answer repeat mat karo."
     )
 
-    # 1. Try Groq API
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY.strip()}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.85,
-        "max_tokens": 150
-    }
-
+    # 1. Primary AI Node (Fast JSON POST)
     try:
-        res = requests.post(url, headers=headers, json=payload, timeout=8)
-        if res.status_code == 200:
-            data = res.json()
-            if "choices" in data and len(data["choices"]) > 0:
-                return data["choices"][0]["message"]["content"].strip()
-        else:
-            print("Groq Error Status:", res.status_code, res.text)
+        url = "https://text.pollinations.ai/"
+        payload = {
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_prompt}
+            ],
+            "model": "mistral",
+            "seed": random.randint(1, 99999)
+        }
+        res = requests.post(url, json=payload, timeout=20)
+        if res.status_code == 200 and len(res.text.strip()) > 0:
+            return res.text.strip()
     except Exception as e:
-        print("Groq Exception:", e)
+        print("Node 1 Error:", e)
 
-    # 2. Unlimited 100% Free AI Engine Backup (Kabhi fail nahi hota)
+    # 2. Secondary AI Node (Direct GET Backup)
     try:
-        backup_url = f"https://text.pollinations.ai/{requests.utils.quote(user_prompt)}?system={requests.utils.quote(system_instruction)}&model=openai"
-        b_res = requests.get(backup_url, timeout=10)
-        if b_res.status_code == 200 and b_res.text.strip():
-            return b_res.text.strip()
+        safe_prompt = requests.utils.quote(f"{system_instruction} User said: {user_prompt}")
+        b_url = f"https://text.pollinations.ai/{safe_prompt}"
+        res2 = requests.get(b_url, timeout=15)
+        if res2.status_code == 200 and len(res2.text.strip()) > 0:
+            return res2.text.strip()
     except Exception as e:
-        print("Backup Engine Error:", e)
+        print("Node 2 Error:", e)
 
-    return "Dil ki dhadkan tez ho rahi hai ya mujhse darr lag raha hai? 😈💉"
+    # 3. Dynamic Fallbacks (Har baar alag line)
+    witty_fallbacks = [
+        "Aise ghoor ke mat dekho babu, nazar lag jayegi! 😈💋",
+        "Mera injection tayyar hai, bolo kahan dard ho raha hai? 💉🖤",
+        "Itna attitude kis baat ka? Miss Doctor ke saamne sab seedhe ho jate hain! ⚡🩺",
+        "Bolo na jaan, chup kyu ho gaye? Darr lag gaya kya? 😈🥀",
+        "Dhadkan sambhal ke rakho babu, treatment abhi baaki hai! 🩺🔥"
+    ]
+    return random.choice(witty_fallbacks)
 
 # ----------------- DATA LISTS -----------------
 SHAYARIS = [
@@ -159,7 +158,7 @@ def handle_all_messages(message):
 
     # 2. Owner Protection Mention
     if f"@{OWNER_USERNAME}".lower() in text_lower:
-        bot.reply_to(message, "⚠️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, unke kaam me dakhal mat do! 💀⚡", parse_mode="Markdown")
+        bot.reply_to(message, "⚠️️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, unke kaam me dakhal mat do! 💀⚡", parse_mode="Markdown")
         return
 
     # 3. /start Command
@@ -401,3 +400,4 @@ if __name__ == "__main__":
                 time.sleep(3)
         except Exception:
             time.sleep(3)
+    
