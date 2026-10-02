@@ -10,10 +10,10 @@ BOT_TOKEN = "8814355727:AAG7c-0teGiljwKq-liqCws1AoGGzH1feZY"
 GEMINI_API_KEY = "AQ.Ab8RN6Ii6xTKce13KWXTvvIGovgkbVixDckeT_rbY84mjtQt5w"
 OWNER_USERNAME = "itz_rohit_rss"
 
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 chats_file = "chats.txt"
 
-# ----------------- DUMMY FLASK WEB SERVER (PORT BIND FIX) -----------------
+# ----------------- FLASK DUMMY SERVER (RENDER PORT BIND) -----------------
 app = Flask(__name__)
 
 @app.route('/')
@@ -22,7 +22,7 @@ def home():
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, use_reloader=False)
 
 # ----------------- CHAT PERSISTENCE -----------------
 def load_chats():
@@ -37,7 +37,7 @@ def save_chat(chat_id):
         with open(chats_file, "a") as f:
             f.write(f"{chat_id}\n")
 
-# ----------------- GEMINI AI CALL -----------------
+# ----------------- GEMINI AI -----------------
 def ask_gemini(user_prompt):
     if not GEMINI_API_KEY:
         return "Doctor saab clinic par hain, pehle API key lagao! 🩺"
@@ -67,35 +67,35 @@ def ask_gemini(user_prompt):
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        response = requests.post(url, headers=headers, json=payload, timeout=12)
         data = response.json()
         if "candidates" in data and len(data["candidates"]) > 0:
             candidate = data["candidates"][0]
             if "content" in candidate and "parts" in candidate["content"]:
                 return candidate["content"]["parts"][0]["text"]
         return "Uff, mood kharab kar diya mera... jao baad mein aana! 😤💔"
-    except Exception:
+    except Exception as e:
+        print("Gemini API error:", e)
         return "Network ne dhokha de diya babu, ruko thoda! 🥺"
 
-# ----------------- TELEGRAM HANDLERS -----------------
-@bot.message_handler(func=lambda message: True, content_types=['text', 'photo', 'sticker', 'new_chat_members'])
+# ----------------- MESSAGE HANDLERS -----------------
+@bot.message_handler(func=lambda message: True, content_types=['text'])
 def handle_all_messages(message):
     save_chat(message.chat.id)
-
-    if not message.text:
-        return
-
-    text = message.text.strip()
+    text = (message.text or "").strip()
     text_lower = text.lower()
 
+    # 1. Mention check
     if f"@{OWNER_USERNAME}".lower() in text_lower:
         bot.reply_to(message, "Sir busy hain abhi!")
         return
 
+    # 2. Owner info
     if text_lower in ["/owner", "owner kaun hai", "who is owner", "owner", "admin"]:
-        bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️️")
+        bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️")
         return
 
+    # 3. Broadcast command
     if text.startswith("/broadcast") or text.startswith("/Broadcast"):
         sender_username = (message.from_user.username or "").lower()
         if sender_username != OWNER_USERNAME.lower():
@@ -104,7 +104,7 @@ def handle_all_messages(message):
 
         parts = text.split(maxsplit=1)
         if len(parts) < 2:
-            bot.reply_to(message, "⚠️ Message sath mein likhein:\n`/broadcast hello`", parse_mode="Markdown")
+            bot.reply_to(message, "⚠️ Message sath mein likhein:\n`/broadcast hello sabko`")
             return
 
         broadcast_msg = parts[1]
@@ -126,32 +126,34 @@ def handle_all_messages(message):
         )
         return
 
+    # 4. Start command
     if text.startswith("/start"):
         bot.reply_to(message, "Hii baby! Main Miss Doctor hoon 🩺. Aao baatein karein, kya chal raha hai? 😘")
         return
 
+    # 5. AI Chat
     is_private = message.chat.type == "private"
     is_reply_to_bot = bool(message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id)
     bot_called = any(name in text_lower for name in ["doctor", "miss doctor", "bot", "babu", "baby"])
 
     if is_private or is_reply_to_bot or bot_called:
-        bot.send_chat_action(message.chat.id, 'typing')
+        try:
+            bot.send_chat_action(message.chat.id, 'typing')
+        except Exception:
+            pass
         reply = ask_gemini(text)
         bot.reply_to(message, reply)
 
-def start_polling():
-    time.sleep(2)
+# ----------------- RUNNERS -----------------
+if __name__ == "__main__":
+    # Flask ko alag thread me chalao taaki main thread polling ko block na kare
+    threading.Thread(target=run_web, daemon=True).start()
+    
+    print("Miss Doctor polling starting in main thread...")
     while True:
         try:
-            bot.infinity_polling(timeout=10, long_polling_timeout=5)
-        except Exception as e:
-            print("Polling restart:", e)
+            bot.polling(none_stop=True, interval=0, timeout=20)
+        except Exception as err:
+            print("Polling crash recovered:", err)
             time.sleep(3)
-
-# ----------------- MAIN RUNNER -----------------
-if __name__ == "__main__":
-    # Telegram bot background thread me chalega
-    threading.Thread(target=start_polling, daemon=True).start()
-    # Flask port bind karega Render deployment ke liye
-    run_web()
     
