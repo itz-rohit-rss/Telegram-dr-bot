@@ -9,23 +9,21 @@ from telebot.apihelper import ApiTelegramException
 from flask import Flask
 
 # ----------------- CONFIGURATION -----------------
-# New active token for @Miss_Dr_robot
 BOT_TOKEN = "8814355727:AAG7c-0teGiljwKq-liqCws1AoGGzH1feZY"
 OWNER_USERNAME = "itz_rohit_rss"
 
-bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
+bot = telebot.TeleBot(BOT_TOKEN, threaded=True)
 
-CHATS_FILE = "chats.txt"
+DATA_FILE = "group_data.json"
 FILTERS_FILE = "filters.json"
-USERS_FILE = "users_data.json"
-RIDDLES_TRACK_FILE = "asked_riddles.json"
+CHATS_FILE = "chats.txt"
 
 # ----------------- FLASK DUMMY SERVER (FOR RENDER 24/7) -----------------
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Miss Doctor Bot (@Miss_Dr_robot) is Running Live 24/7!"
+    return "Supreme Group Ranking & Management Bot is Live 24/7!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -45,358 +43,299 @@ def save_json(file_path, data):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def load_chats():
+def save_chat(chat_id):
+    active_chats = set()
     if os.path.exists(CHATS_FILE):
         with open(CHATS_FILE, "r") as f:
-            return set(line.strip() for line in f if line.strip())
-    return set()
-
-def save_chat(chat_id):
-    active_chats = load_chats()
+            active_chats = set(line.strip() for line in f if line.strip())
     if str(chat_id) not in active_chats:
         with open(CHATS_FILE, "a") as f:
             f.write(f"{chat_id}\n")
 
-# ----------------- MULTI-NODE AI ENGINE -----------------
-def ask_ai(user_prompt):
-    system_instruction = (
-        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, dangerous devil doctor ladki aur super flirty ho. "
-        "Tumhare creator aur boss @itz_rohit_rss hain. "
-        "User ke har message ka natural, funny, thoda nakhrewala aur flirty jawab Hinglish mein do. "
-        "Emojis zaroor use karo (😈, 🖤, 🩺, 💋, ⚡, 💉). "
-        "1-2 lines mein short aur crisp reply do, ek hi dialogue repeat mat karo."
-    )
-
-    # Node 1: Fast AI POST
-    try:
-        url = "https://text.pollinations.ai/"
-        payload = {
-            "messages": [
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": user_prompt}
-            ],
-            "model": "mistral",
-            "seed": random.randint(1, 999999)
-        }
-        res = requests.post(url, json=payload, timeout=20)
-        if res.status_code == 200 and len(res.text.strip()) > 0:
-            return res.text.strip()
-    except Exception as e:
-        print("Node 1 error:", e)
-
-    # Node 2: Backup AI GET
-    try:
-        encoded_prompt = requests.utils.quote(f"{system_instruction} User message: {user_prompt}")
-        b_url = f"https://text.pollinations.ai/{encoded_prompt}"
-        res2 = requests.get(b_url, timeout=15)
-        if res2.status_code == 200 and len(res2.text.strip()) > 0:
-            return res2.text.strip()
-    except Exception as e:
-        print("Node 2 error:", e)
-
-    # Dynamic witty fallbacks (agar network slow ho)
-    witty_fallbacks = [
-        "Aise ghoor ke dekhoge toh dil ki bimari ho jayegi baby! 😈🩺",
-        "Mera injection ready hai, bolo dawa du ya thoda pyaar? 💉🖤",
-        "Itna kyu sharma rahe ho? Doctor se kuch nahi chupate! 😘⚡",
-        "Doctor Miss Doctor ke clinic me swagat hai, bataiye kya takleef hai? 😈💋"
-    ]
-    return random.choice(witty_fallbacks)
-
 # ----------------- DATA LISTS -----------------
 SHAYARIS = [
-    "Aapki aankhon mein ajeeb si kashish hai,\nDoctor kehte hain yeh ishq ki bandish hai! 😘🩺",
-    "Dhadkan ko bhi sambhal kar rakha karo,\nHar baar injection se ilaaj nahi hota! 💉🙈",
-    "Dil ka operation toh kar diya humne,\nPar marz yeh nikla ki tum par hi fida ho gaye! ❤️💋",
-    "Nazar mili toh bukhar chadha diya tumne,\nBolo ab dawa kya dega yeh haseen doctor? 🥺🩺",
-    "Hum toh aate the tumhari nabz check karne,\nTumne toh seene ki dhadkan hi chura li! 🙈❤️"
+    "Aapki aankhon mein ajeeb si kashish hai,\nLagta hai yeh dil aapka hi aashiq hai! ❤️✨",
+    "Dhadkan ko bhi sambhal kar rakha karo,\nHar baar aashiqui se ilaaj nahi hota! 🙈🩺",
+    "Mohabbat ka koi nasha hi alag hota hai,\nTum samne na ho toh dil bechain rehta hai! 🌹🥀",
+    "Hazaaron mehfilen hain aur laakhon mele hain,\nPar jahan tum nahi wahan hum bilkul akele hain! 🥺❤️",
+    "Teri saadgi ko dekh kar hi fida ho gaye,\nBolo ab kahan hum khud se juda ho gaye! 😘⚡"
 ]
 
-RANDOM_TAG_WORDS = [
-    "Oye zinda hai ya upar bula loon? 💀😈", 
-    "Doctor saab ke darr se chup ke baitha hai kya? 🩺🔥",
-    "Online aa ja warna tera system crash kar doongi! ⚡🩸", 
-    "Kahan gayab ho gaye janab, thoda dard aur chahiye? 🖤😈",
-    "Bina meri ijazat ke offline jane ki himmat kaise hui? 😤🥀"
+JOKES = [
+    "Pappu: Yaar doctor ne mujhe aam khane se mana kiya hai.\nFriend: Kyu?\nPappu: Kyunki unka kehna hai ki main pehle se hi bohot mitha hoon! 😂🤣",
+    "Teacher: Class me sabse shant kaun rehta hai?\nStudent: Sir, jiska phone silent mode par ho aur charging 100% ho! 😜😆",
+    "Biwi: Suniye ji, aap mere liye taare tod kar la sakte hain?\nPati: Pehle tu bartan dho le, taare baad me todunga! 💀🤣",
+    "Ek machhar ne doosre se kaha: 'Insaan kitne bewakoof hote hain, thappad apne aap ko maarte hain aur lagta hume hai!' 🦟😂"
 ]
 
-RIDDLES_LIST = [
-    "Woh kya hai jo saal mein 1 baar, mahine mein 2 baar, hafte mein 4 baar aur din mein 6 baar aata hai? 🤔💭",
-    "Aisi kaun si cheez hai jise hum nigal jayein toh theek, par woh hume nigal jaye toh hum mar jayein? 🌊🤫",
-    "Woh kya hai jo bina pairon ke chalti hai aur kabhi thakti nahi? ⏰👀",
-    "Aisi kaun si cheez hai jo subah ko chaar taangon par, dopahar ko do taangon par aur shaam ko teen taangon par chalti hai? 🚶‍♂️👴",
-    "Woh kaun si cheez hai jise jitna kheecho woh utni hi chhoti hoti jati hai? 🚬🔥",
-    "Ek aisi cheez ka naam batao jise kaatne par log gaana gaate hain? 🎂🎉",
-    "Woh kya hai jiske paas daant toh hain par woh kaat nahi sakta? 🪮💁‍♂️",
-    "Aisi kaun si sabzi hai jisme taala aur chaabi dono aate hain? 🔐🥒",
-    "Katora pe katora, beta baap se bhi gora! Batao kya? 🥥✨",
-    "Lal ghoda ruka rahe, kala ghoda bhagta jaye! Batao kya? 🔥💨",
-    "Woh kya hai jo aati hai toh aati hai, jaati hai toh jaati hai, par dikhai nahi deti? 🌬️💨",
-    "Aisi kaun si cheez hai jo sukhi ho toh 2 kilo, geeli ho toh 1 kilo aur jal jaye toh 3 kilo ho jati hai? ⚗️🧪",
-    "Do sundar ladke, dono ek rang ke, ek bichhad jaye toh doosra kaam na aaye! Batao kya? 👞👟",
-    "Kaali hai par koyal nahi, lambi hai par saanp nahi, bal khati hai par rassi nahi! Batao kya? 💇‍♀️🖤",
-    "Aisi kaun si jagah hai jahan 100 log jaate hain toh 101 log wapas aate hain? 👰🤵"
+FUN_STICKERS = [
+    "CAACAgIAAxkBAAEBQ5Fmz...", # Standard Telegram pack sticker fallbacks
 ]
 
-# ----------------- MESSAGE HANDLERS -----------------
-@bot.message_handler(func=lambda message: True, content_types=['text'])
-def handle_all_messages(message):
+MIRROR_EMOJIS = ["🔥", "❤️", "😈", "⚡", "✨", "👑", "👀", "😎", "💯", "🥀"]
+
+# ----------------- BACKGROUND SCHEDULER (HAR 2 GHANTE BAAD CONGRATULATION) -----------------
+def auto_ranking_announcer():
+    while True:
+        # Har 2 ghante (7200 seconds) wait karega
+        time.sleep(7200)
+        try:
+            group_data = load_json(DATA_FILE)
+            for chat_id, users in group_data.items():
+                if not users:
+                    continue
+
+                # Sort user based on message counts
+                sorted_users = sorted(users.items(), key=lambda item: item[1].get("count", 0), reverse=True)
+                if not sorted_users or sorted_users[0][1].get("count", 0) == 0:
+                    continue
+
+                top_user_id, top_info = sorted_users[0]
+                name = top_info.get("name", "Mortal")
+                username = top_info.get("username", "")
+                user_tag = f"@{username}" if username else f"[{name}](tg://user?id={top_user_id})"
+                total_msgs = top_info.get("count", 0)
+
+                congrats_message = (
+                    "╭━━━━〔 👑 𝐓𝐎𝐏 𝐂𝐇𝐀𝐓𝐓𝐄𝐑 𝐀𝐋𝐄𝐑𝐓 👑 〕━━━━╮\n\n"
+                    f"🎉 **C O N G R A T U L A T I O N S** 🎉\n\n"
+                    f"👤 **Winner:** {user_tag}\n"
+                    f"📛 **Name:** `{name}`\n"
+                    f"📊 **Total Messages:** `{total_msgs}` Sent in last 2 Hours!\n\n"
+                    "⚡ *Group ke Asli Sultan aap hi ho! Aise hi mahol banaye rakho!* 🥂🔥\n\n"
+                    "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
+                )
+                
+                try:
+                    bot.send_message(int(chat_id), congrats_message, parse_mode="Markdown")
+                except Exception as send_err:
+                    print(f"Error dropping auto ranking to {chat_id}:", send_err)
+
+                # Announce karne ke baad count reset taaki agle 2 ghante ki fresh ranking ho
+                for uid in users:
+                    users[uid]["count"] = 0
+                
+            save_json(DATA_FILE, group_data)
+        except Exception as e:
+            print("Auto ranking runner error:", e)
+
+# ----------------- WELCOME NEW MEMBER -----------------
+@bot.message_handler(content_types=['new_chat_members'])
+def welcome_member(message):
+    save_chat(message.chat.id)
+    chat_title = message.chat.title or "Our Super Group"
+    for new_user in message.new_chat_members:
+        if new_user.is_bot:
+            continue
+        first_name = new_user.first_name
+        uname = f"@{new_user.username}" if new_user.username else "No Username"
+        user_link = f"[{first_name}](tg://user?id={new_user.id})"
+
+        welcome_text = (
+            "╭━━━━〔 ✨ 𝐖𝐄𝐋𝐂𝐎𝐌𝐄 𝐓𝐎 𝐓𝐇𝐄 𝐆𝐑𝐎𝐔𝐏 ✨ 〕━━━━╮\n\n"
+            f"👋 **Hey:** {user_link}\n"
+            f"👤 **Username:** `{uname}`\n"
+            f"🏠 **Group:** `{chat_title}`\n\n"
+            "🌟 *Humari mehfil me aapka tahe dil se swagat hai!*\n"
+            "Masti karo, baatein karo aur top active member banke ranking jeeto! 🥂👑\n\n"
+            "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
+        )
+        bot.reply_to(message, welcome_text, parse_mode="Markdown")
+
+# ----------------- COMMANDS -----------------
+@bot.message_handler(commands=['start', 'help'])
+def help_command(message):
+    save_chat(message.chat.id)
+    help_text = (
+        "╭━━━━〔 ⚡ 𝐒𝐔𝐏𝐑𝐄𝐌𝐄 𝐁𝐎𝐓 𝐌𝐄𝐍𝐔 ⚡ 〕━━━━╮\n\n"
+        "👑 **RANKING & STATS:**\n"
+        "├ `/ranking` - Live Group Top Chatters dekho\n"
+        "├ Auto: Har 2 ghante me Winner ka announcement!\n\n"
+        "📢 **MANAGEMENT & FUN:**\n"
+        "├ `/tagall [msg]` - Group ke sabhi members ko tag karo\n"
+        "├ `/filter [word] [reply]` - Auto trigger set karo\n"
+        "├ `/stopfilter [word]` - Trigger delete karo\n"
+        "├ `/shayari` - Romantic Shayari suno\n"
+        "├ `/joke` - Mazedaar Chutkule suno\n\n"
+        "✨ **SMART REACTIONS:**\n"
+        "├ Shayari par 'Wah Wah' bolne par cute reply ❤️\n"
+        "├ Joke par hasne par Thank you 😊\n"
+        "├ Emojis ka Emoji se & Sticker ka Sticker se reply\n"
+        "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯"
+    )
+    bot.reply_to(message, help_text, parse_mode="Markdown")
+
+@bot.message_handler(commands=['ranking'])
+def ranking_command(message):
+    save_chat(message.chat.id)
+    chat_id = str(message.chat.id)
+    group_data = load_json(DATA_FILE)
+    users = group_data.get(chat_id, {})
+
+    if not users:
+        bot.reply_to(message, "📊 Abhi tak kisi ne koi message nahi bheja! Chat shuru karo babu! 💬")
+        return
+
+    sorted_users = sorted(users.items(), key=lambda item: item[1].get("count", 0), reverse=True)[:10]
+
+    leaderboard = "🏆 **LIVE GROUP LEADERBOARD (TOP CHATTERS)** 🏆\n\n"
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+
+    for idx, (uid, info) in enumerate(sorted_users):
+        name = info.get("name", "User")
+        uname = f"(@{info.get('username')})" if info.get('username') else ""
+        count = info.get("count", 0)
+        medal = medals[idx] if idx < len(medals) else "🔹"
+        leaderboard += f"{medal} `{name}` {uname} ➔ **{count} msgs**\n"
+
+    leaderboard += "\n⏳ *Next Winner Crown Announcement 2 Ghante ke andar!* 🔥"
+    bot.reply_to(message, leaderboard, parse_mode="Markdown")
+
+@bot.message_handler(commands=['tagall'])
+def tagall_command(message):
+    save_chat(message.chat.id)
+    if message.chat.type not in ["group", "supergroup"]:
+        bot.reply_to(message, "⚠️ Ye command sirf group me chalegi!")
+        return
+
+    custom_text = message.text.replace("/tagall", "").strip() or "Sabhi hazir ho jao turant!"
+    try:
+        admins = bot.get_chat_administrators(message.chat.id)
+        mentions = [f"[{admin.user.first_name}](tg://user?id={admin.user.id})" for admin in admins]
+        tag_chunk = " ".join(mentions)
+
+        msg = f"📢 **ATTENTION EVERYONE** 📢\n\n💬 `{custom_text}`\n\n{tag_chunk}"
+        bot.send_message(message.chat.id, msg, parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, f"Kuch issue hua: {e}")
+
+@bot.message_handler(commands=['shayari'])
+def shayari_command(message):
+    bot.reply_to(message, f"🌹 **Miss Doctor Shayari:**\n\n{random.choice(SHAYARIS)}")
+
+@bot.message_handler(commands=['joke'])
+def joke_command(message):
+    bot.reply_to(message, f"🎭 **Aapke Liye Joke:**\n\n{random.choice(JOKES)}")
+
+@bot.message_handler(commands=['filter'])
+def add_filter(message):
+    chat_id = str(message.chat.id)
+    parts = message.text.split(maxsplit=2)
+    if len(parts) < 3:
+        bot.reply_to(message, "⚠️ Usage: `/filter [keyword] [reply_message]`", parse_mode="Markdown")
+        return
+    keyword = parts[1].lower()
+    reply_msg = parts[2]
+
+    filters = load_json(FILTERS_FILE)
+    if chat_id not in filters:
+        filters[chat_id] = {}
+    filters[chat_id][keyword] = reply_msg
+    save_json(FILTERS_FILE, filters)
+    bot.reply_to(message, f"✅ Trigger set: Jab bhi koi `{keyword}` bolega, auto reply jayega!", parse_mode="Markdown")
+
+@bot.message_handler(commands=['stopfilter'])
+def remove_filter(message):
+    chat_id = str(message.chat.id)
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        bot.reply_to(message, "⚠️ Usage: `/stopfilter [keyword]`", parse_mode="Markdown")
+        return
+    keyword = parts[1].lower()
+
+    filters = load_json(FILTERS_FILE)
+    if chat_id in filters and keyword in filters[chat_id]:
+        del filters[chat_id][keyword]
+        save_json(FILTERS_FILE, filters)
+        bot.reply_to(message, f"🗑️ Trigger `{keyword}` delete kar diya gaya!", parse_mode="Markdown")
+    else:
+        bot.reply_to(message, "❌ Aisa koi trigger exist nahi karta.")
+
+# ----------------- STICKER REPLY WITH STICKER -----------------
+@bot.message_handler(content_types=['sticker'])
+def sticker_handler(message):
+    save_chat(message.chat.id)
+    # User ke bhejhe sticker ke response me sticker mirror karta hai
+    try:
+        bot.send_sticker(message.chat.id, message.sticker.file_id)
+    except Exception:
+        pass
+
+# ----------------- MAIN TEXT / REACTION / ANALYSER HANDLER -----------------
+@bot.message_handler(func=lambda m: True, content_types=['text'])
+def message_analyser_and_react(message):
     save_chat(message.chat.id)
     text = (message.text or "").strip()
     text_lower = text.lower()
     chat_id = str(message.chat.id)
     user_id = str(message.from_user.id)
     user_name = message.from_user.first_name
+    username = message.from_user.username or ""
 
-    # 1. Custom Filters
-    filters_data = load_json(FILTERS_FILE)
-    chat_filters = filters_data.get(chat_id, {})
+    # Ignore command execution from counts
+    if text.startswith("/"):
+        return
+
+    # 1. MESSAGE COUNTER (2-HOUR RANKING TRACKER)
+    group_data = load_json(DATA_FILE)
+    if chat_id not in group_data:
+        group_data[chat_id] = {}
+    if user_id not in group_data[chat_id]:
+        group_data[chat_id][user_id] = {"name": user_name, "username": username, "count": 0}
+
+    group_data[chat_id][user_id]["count"] += 1
+    group_data[chat_id][user_id]["name"] = user_name
+    group_data[chat_id][user_id]["username"] = username
+    save_json(DATA_FILE, group_data)
+
+    # 2. AUTO FILTERS TRIGGER
+    filters = load_json(FILTERS_FILE)
+    chat_filters = filters.get(chat_id, {})
     if text_lower in chat_filters:
         bot.reply_to(message, chat_filters[text_lower])
         return
 
-    # 2. Owner Protection Mention
-    if f"@{OWNER_USERNAME}".lower() in text_lower:
-        bot.reply_to(message, "⚠️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, unke kaam me dakhal mat do! 💀⚡", parse_mode="Markdown")
+    # 3. SHAYARI PAR 'WAH WAH' REACTION
+    wah_keywords = ["wah", "waah", "wah wah", "waah waah", "kya baat hai", "subhanallah", "gazab", "bohot khoob"]
+    if any(k in text_lower for k in wah_keywords):
+        bot.reply_to(message, "Thank you baby tum hi to samjhte ho mujhe 🙈❤️")
         return
 
-    # 3. /start Command
-    if text.startswith("/start"):
-        devil_welcome = (
-            "╭━━━〔 𝕯𝕰𝖁𝕴𝕷 𝕮𝕷𝕴𝕹𝕴𝕮 〕━━━╮\n"
-            "🕷️ **𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐓𝐨 𝐓𝐡𝐞 𝐃𝐚𝐫𝐤 𝐃𝐨𝐦𝐚𝐢𝐧** 🕷️\n\n"
-            f"👤 **Hey Mortal:** `{user_name}`\n"
-            "🩺 **Name:** `MISS DOCTOR` (@Miss_Dr_robot 😈)\n"
-            "👑 **Lord & Creator:** `@itz_rohit_rss`\n\n"
-            "⚡ *Dawa bhi main doongi aur dard bhi...*\n"
-            "Maut ka ilaaj dhoondhne aaye ho ya dil haarne? Sambhal kar rehna, yahan har saans par mera pehra hai. 🩸🖤\n\n"
-            "⚔️ **DEADLY WEAPONS / COMMANDS:**\n"
-            "├ 💬 Direct AI Chat (Flirt ya Khatra)\n"
-            "├ 🧩 `/q` - Dimag hilane wali Paheliyan\n"
-            "├ 💰 `/rob` - Tijori Looto ya fine bharo\n"
-            "├ 🩸 `/shayari` - Deadly Romantic Shayari\n"
-            "├ 🎙️ `/vc` - Devil Voice Call Alert\n"
-            "├ 💋 `/kiss` | 👋 `/slap` - Fun Torment\n"
-            "├ 📢 `/tagall` | 🎯 `/rtag` - Group Terror\n"
-            "╰━━━━━━━━━━━━━━━━━━━━╯"
-        )
-        bot.reply_to(message, devil_welcome, parse_mode="Markdown")
+    # 4. JOKE PAR LAUGHING EMOJI REACTION
+    laugh_emojis = ["😂", "🤣", "😆", "😹", "xd", "haha", "hahaha"]
+    if any(e in text_lower for e in laugh_emojis):
+        bot.reply_to(message, "Thank you 😊")
         return
 
-    # 4. /owner Command
-    if text_lower in ["/owner", "owner kaun hai", "who is owner", "owner", "admin"]:
-        bot.reply_to(message, f"⚡ Mere ek laute Baap aur Creator **@{OWNER_USERNAME}** hain! Unke samne sab jhukte hain. 👑💀", parse_mode="Markdown")
+    # 5. SINGLE EMOJI KA REPLY EMOJI SE
+    if len(text) <= 2 and any(char in text for char in MIRROR_EMOJIS + ["😀", "😍", "😎", "🥺", "😡", "🤔"]):
+        bot.reply_to(message, random.choice(MIRROR_EMOJIS))
         return
 
-    # 5. /q Command (Paheli)
-    if text.startswith("/q") or text.startswith("/Q"):
-        asked_data = load_json(RIDDLES_TRACK_FILE)
-        asked_indices = asked_data.get(chat_id, [])
-
-        remaining_indices = [i for i in range(len(RIDDLES_LIST)) if i not in asked_indices]
-
-        if not remaining_indices:
-            asked_indices = []
-            remaining_indices = list(range(len(RIDDLES_LIST)))
-
-        selected_idx = random.choice(remaining_indices)
-        asked_indices.append(selected_idx)
-
-        asked_data[chat_id] = asked_indices
-        save_json(RIDDLES_TRACK_FILE, asked_data)
-
-        bot.reply_to(message, f"🧩 **Devil Miss Doctor ka Sawal:**\n\n{RIDDLES_LIST[selected_idx]}\n\n_Agar jawab nahi pata toh surrender kar do babu! 😈💀_", parse_mode="Markdown")
-        return
-
-    # 6. /shayari Command
-    if text.startswith("/shayari"):
-        bot.reply_to(message, random.choice(SHAYARIS))
-        return
-
-    # 7. /vc Command
-    if text.startswith("/vc"):
-        vc_quotes = [
-            "🔊 Aao sab Voice Chat par aa jao, main injection le kar baithi hoon! 💉😈",
-            "🎙️ VC start ho chuki hai baby, aao thodi tabahi machayein! ⚡🎧",
-            "📞 Sab log fatfat VC join karo, Doctor saab live operation karenge! 🩸💀"
-        ]
-        bot.reply_to(message, random.choice(vc_quotes))
-        return
-
-    # 8. /rob Command
-    if text.startswith("/rob"):
-        users_data = load_json(USERS_FILE)
-        if user_id not in users_data:
-            users_data[user_id] = {"coins": 100, "last_rob": 0}
-
-        current_time = time.time()
-        if current_time - users_data[user_id].get("last_rob", 0) < 60:
-            remaining = int(60 - (current_time - users_data[user_id].get("last_rob", 0)))
-            bot.reply_to(message, f"⏳ Sabar kar chor! Agla daka {remaining}s baad daalna, police peeche lagi hai. 🚔💀")
-            return
-
-        users_data[user_id]["last_rob"] = current_time
-        outcome = random.choice(["success", "caught", "lucky"])
-
-        if outcome == "success":
-            stolen = random.randint(30, 150)
-            users_data[user_id]["coins"] += stolen
-            bot.reply_to(message, f"💰 Shabaash! Dark bank loot kar **{stolen} coins** chura liye! Total: {users_data[user_id]['coins']} 🪙", parse_mode="Markdown")
-        elif outcome == "lucky":
-            jackpot = random.randint(200, 400)
-            users_data[user_id]["coins"] += jackpot
-            bot.reply_to(message, f"🎉 JACKPOT! Devil ki secret tijori tod di aur **{jackpot} coins** uda le gaye! Total: {users_data[user_id]['coins']} 🪙", parse_mode="Markdown")
-        else:
-            fine = random.randint(20, 60)
-            users_data[user_id]["coins"] = max(0, users_data[user_id]["coins"] - fine)
-            bot.reply_to(message, f"🚔 Pakde gaye badmash! Doctor ne **{fine} coins** ka jurmana thonk diya! Bacha: {users_data[user_id]['coins']} 🪙", parse_mode="Markdown")
-
-        save_json(USERS_FILE, users_data)
-        return
-
-    # 9. /kiss and /slap
-    if text.startswith("/kiss"):
-        if message.reply_to_message:
-            target_name = message.reply_to_message.from_user.first_name
-            bot.reply_to(message, f"💋 {user_name} ne {target_name} ko ek deadly toxic pappi de di! 😈🖤")
-        else:
-            bot.reply_to(message, f"💋 Miss Doctor ne {user_name} ko ek dark and sweet kiss di... nasha chadhega ab! 😘🥀")
-        return
-
-    if text.startswith("/slap"):
-        if message.reply_to_message:
-            target_name = message.reply_to_message.from_user.first_name
-            bot.reply_to(message, f"👋 {user_name} ne {target_name} ke gaal par 440 volt ka thappad mara! ⚡💀")
-        else:
-            bot.reply_to(message, "Kis azaad panchi ko zameen par lana hai? Reply karke bolo! 😡👊")
-        return
-
-    # 10. /filter and /stopfilter
-    if text.startswith("/filter"):
-        parts = text.split(maxsplit=2)
-        if len(parts) < 3:
-            bot.reply_to(message, "⚠️ Format:\n`/filter word reply_message`\nJaise: `/filter hi hello devil`", parse_mode="Markdown")
-            return
-        keyword = parts[1].lower()
-        reply_content = parts[2]
-        if chat_id not in filters_data:
-            filters_data[chat_id] = {}
-        filters_data[chat_id][keyword] = reply_content
-        save_json(FILTERS_FILE, filters_data)
-        bot.reply_to(message, f"✅ Target set: `{keyword}` trigger hone par tabahi machegi!", parse_mode="Markdown")
-        return
-
-    if text.startswith("/stopfilter"):
-        parts = text.split(maxsplit=1)
-        if len(parts) < 2:
-            bot.reply_to(message, "⚠️ Keyword likhein: `/stopfilter word`", parse_mode="Markdown")
-            return
-        keyword = parts[1].lower()
-        if chat_id in filters_data and keyword in filters_data[chat_id]:
-            del filters_data[chat_id][keyword]
-            save_json(FILTERS_FILE, filters_data)
-            bot.reply_to(message, f"🗑️ Trigger `{keyword}` ko mitaya gaya!", parse_mode="Markdown")
-        else:
-            bot.reply_to(message, "❌ Aisa koi target exist nahi karta!")
-        return
-
-    # 11. /tagall Command
-    if text.startswith("/tagall"):
-        if message.chat.type in ["group", "supergroup"]:
-            custom_msg = text.replace("/tagall", "").strip() or "Hajiri lagao sabhi ke sabhi warna sabka system hang hoga!"
-            try:
-                admins = bot.get_chat_administrators(message.chat.id)
-                tag_list = []
-                for admin in admins:
-                    u = admin.user
-                    tag_list.append(f"[{u.first_name}](tg://user?id={u.id})")
-                tag_chunk = " ".join(tag_list)
-                bot.send_message(message.chat.id, f"⚠️ **ALERT FROM MISS DOCTOR** ⚠️\n\n📢 {custom_msg}\n\n{tag_chunk}", parse_mode="Markdown")
-            except Exception as e:
-                bot.reply_to(message, f"Target track nahi ho pa rahe: {e}")
-        else:
-            bot.reply_to(message, "Yeh command sirf group ke liye bani hai! 🩺")
-        return
-
-    # 12. /rtag Command
-    if text.startswith("/rtag"):
-        if message.chat.type in ["group", "supergroup"]:
-            tag_quote = random.choice(RANDOM_TAG_WORDS)
-            try:
-                admins = bot.get_chat_administrators(message.chat.id)
-                if admins:
-                    random_user = random.choice(admins).user
-                    mention = f"[{random_user.first_name}](tg://user?id={random_user.id})"
-                    bot.send_message(message.chat.id, f"{mention} {tag_quote}", parse_mode="Markdown")
-            except Exception:
-                bot.reply_to(message, f"Oye badmash {tag_quote}")
-        else:
-            bot.reply_to(message, "Group me aao tab shikaar chunungi! 😈")
-        return
-
-    # 13. /broadcast Command (Owner Only)
-    if text.startswith("/broadcast") or text.startswith("/Broadcast"):
-        sender_username = (message.from_user.username or "").lower()
-        if sender_username != OWNER_USERNAME.lower():
-            bot.reply_to(message, f"❌ Ye command sirf mere Lord @{OWNER_USERNAME} ke liye reserved hai! 💀")
-            return
-
-        parts = text.split(maxsplit=1)
-        if len(parts) < 2:
-            bot.reply_to(message, "⚠️ Message sath mein likhein:\n`/broadcast hello sabko`")
-            return
-
-        broadcast_msg = parts[1]
-        all_chats = load_chats()
-        success_count = 0
-        status_msg = bot.reply_to(message, f"📢 Broadcast shuru: {len(all_chats)} chats...")
-
-        for cid in all_chats:
-            try:
-                bot.send_message(cid, f"⚡ **SUPREME NOTICE FROM DEVIL CREATOR** ⚡\n\n{broadcast_msg}", parse_mode="Markdown")
-                success_count += 1
-            except Exception:
-                pass
-
-        bot.edit_message_text(
-            f"✅ Tabahi broadcast mukammal hui! Sent to {success_count} chats.",
-            chat_id=message.chat.id,
-            message_id=status_msg.message_id
-        )
-        return
-
-    # 14. AI Chatting
-    is_private = message.chat.type == "private"
-    is_reply_to_bot = bool(message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id)
-    bot_called = any(name in text_lower for name in ["doctor", "miss doctor", "bot", "babu", "baby", "devil"])
-
-    if is_private or is_reply_to_bot or bot_called:
-        try:
-            bot.send_chat_action(message.chat.id, 'typing')
-        except Exception:
-            pass
-        reply = ask_ai(text)
-        bot.reply_to(message, reply)
-
-# ----------------- MAIN RUNNER -----------------
+# ----------------- BOT STARTUP -----------------
 if __name__ == "__main__":
+    # Start web server for Render
     threading.Thread(target=run_web, daemon=True).start()
 
-    try:
-        bot.remove_webhook()
-        print("Webhook cleared.")
-    except Exception:
-        pass
+    # Start 2-hour Auto Congratulations Background Thread
+    threading.Thread(target=auto_ranking_announcer, daemon=True).start()
 
-    print("Miss Doctor Engine running 100% active...")
+    # Clear Webhook
+    try:
+        requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook?drop_pending_updates=True", timeout=5)
+        print("Webhook cleared cleanly.")
+    except Exception as e:
+        print("Webhook notice:", e)
+
+    print("Supreme Ranking Bot is fully operational...")
     while True:
         try:
-            bot.infinity_polling(timeout=10, long_polling_timeout=5, skip_pending=True)
+            bot.polling(none_stop=True, interval=0, timeout=20)
         except ApiTelegramException as e:
             if e.error_code == 409:
                 time.sleep(5)
             else:
-                time.sleep(3)
+                time.sleep(2)
         except Exception:
-            time.sleep(3)
+            time.sleep(2)
     
