@@ -6,7 +6,7 @@ import requests
 
 # ----------------- CONFIGURATION -----------------
 BOT_TOKEN = "8814355727:AAH2tcXn3kUYbHhWs1PvVEGGDXbW7UgEPjg"
-GEMINI_API_KEY = "AQ.Ab8RN6LYdiceXhPbTfpRjvrkZHsktyZHjw-bTKSgVsPxm0NMuQ"
+GEMINI_API_KEY = "AQ.Ab8RN6Iuoka0PYBJ24RzNWxWBOQap4r_BBbd8388yPRUWDhAnA"
 
 OWNER_USERNAME = "itz_rohit_rss"
 
@@ -29,11 +29,14 @@ def save_chat(chat_id):
 
 # ----------------- GEMINI AI (FLIRT, DRAMA, MOODS) -----------------
 def ask_gemini(user_prompt):
-    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
+    if not GEMINI_API_KEY:
         return "Doctor saab clinic par hain, pehle API key lagao! 🩺"
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-    headers = {"Content-Type": "application/json"}
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
+    headers = {
+        "Content-Type": "application/json",
+        "X-goog-api-key": GEMINI_API_KEY
+    }
     
     system_instruction = (
         "Tumhara naam 'Miss Doctor' hai. Tum ek bohot hi charming, flirty, thodi nautanki, "
@@ -65,12 +68,18 @@ def ask_gemini(user_prompt):
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=20)
         data = response.json()
+        
+        if "error" in data:
+            print("Gemini API Error:", data["error"])
+            return f"Mood off ho gaya mera: {data['error'].get('message', 'error')} 🥺"
+
         if "candidates" in data and len(data["candidates"]) > 0:
             candidate = data["candidates"][0]
             if "content" in candidate and "parts" in candidate["content"]:
                 return candidate["content"]["parts"][0]["text"]
         return "Uff, mood kharab kar diya mera... jao baad mein aana! 😤💔"
-    except Exception:
+    except Exception as e:
+        print("Request Exception:", e)
         return "Network ne dhokha de diya babu, ruko thoda! 🥺"
 
 # ----------------- DUMMY SERVER FOR RENDER -----------------
@@ -159,4 +168,4 @@ def handle_all_messages(message):
 # ----------------- START POLLING -----------------
 print("Miss Doctor LIVE on Render Free Tier...")
 bot.infinity_polling(skip_pending=True)
-                     
+            
