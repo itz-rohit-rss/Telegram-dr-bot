@@ -67,34 +67,36 @@ def ask_ai(user_prompt):
     }
 
     system_instruction = (
-        "Tumhara naam 'Miss Doctor' hai, par tum koi aam ladki nahi ho — tum ek stylish, flirty, thodi dark, "
-        "deadly aur behad sharp devil character ho. "
-        "Tum apne creator/owner itz_rohit_rss ke alawa kisi se nahi darti. "
-        "User agar pyaar se baat kare toh charm aur nakhre ke sath flirt karo. "
-        "Agar koi hekdi dikhaye toh deadly swag aur savage roast ke sath jawab do. "
-        "Desi Hinglish use karo, stylish emojis lagao (😈, 🩸, 💀, 🩺, 🖤, 💋, ⚡, 🥀). "
-        "Replies 1-3 crisp lines me do aur robotic bilkul mat lago."
+        "Tumhara naam 'Miss Doctor' hai. Tum ek bold, deadly devil, charming aur flirty ladki ho. "
+        "Tum @itz_rohit_rss ki banayi hui dangerous doctor ho. "
+        "Desi Hinglish mein har baat ka witty, flirty, thoda nakhre aur thoda attitude bhara reply do. "
+        "Har baat ka alag aur smart answer do. Emojis use karo (😈, 🖤, 🩺, 💋, ⚡). "
+        "1-3 lines me baat karo aur kabhi same line repeat mat karo."
     )
 
-    payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 0.8,
-        "max_tokens": 150
-    }
+    models_to_try = ["llama-3.1-8b-instant", "llama3-70b-8192", "mixtral-8x7b-32768"]
 
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=12)
-        data = response.json()
-        if "choices" in data and len(data["choices"]) > 0:
-            return data["choices"][0]["message"]["content"].strip()
-        return "Sharafat ki umeed mat rakhna yahan... bolo kya kaam hai? 😈⚡"
-    except Exception as e:
-        print("AI network error:", e)
-        return "Network hil gaya babu, par mera khauf nahi! 💀"
+    for model_name in models_to_try:
+        payload = {
+            "model": model_name,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.85,
+            "max_tokens": 150
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            data = response.json()
+            if "choices" in data and len(data["choices"]) > 0:
+                return data["choices"][0]["message"]["content"].strip()
+            print(f"Groq {model_name} issue:", data)
+        except Exception as e:
+            print(f"Groq {model_name} exception:", e)
+
+    return "Dil ki dhadkan badha ke bol rahe ho ya darr ke? Saaf bolo baby! 😈🩺"
 
 # ----------------- DATA LISTS -----------------
 SHAYARIS = [
@@ -102,7 +104,7 @@ SHAYARIS = [
     "Dhadkan ko bhi sambhal kar rakha karo,\nHar baar injection se ilaaj nahi hota! 💉🙈",
     "Dil ka operation toh kar diya humne,\nPar marz yeh nikla ki tum par hi fida ho gaye! ❤️💋",
     "Nazar mili toh bukhar chadha diya tumne,\nBolo ab dawa kya dega yeh haseen doctor? 🥺🩺",
-    "Hum toh aate the tumhari nabz check karne,\nTumne toh seene ki dhadkan hi chura li! 🙈❤️️"
+    "Hum toh aate the tumhari nabz check karne,\nTumne toh seene ki dhadkan hi chura li! 🙈❤"
 ]
 
 RANDOM_TAG_WORDS = [
@@ -150,10 +152,10 @@ def handle_all_messages(message):
 
     # 2. Owner Protection Mention
     if f"@{OWNER_USERNAME}".lower() in text_lower:
-        bot.reply_to(message, "⚠️️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, zyada ungli ki toh system hila doongi! 💀⚡", parse_mode="Markdown")
+        bot.reply_to(message, "⚠️ *Khabardaar!* Sir @itz_rohit_rss ka territory hai yeh, zyada ungli ki toh system hila doongi! 💀⚡", parse_mode="Markdown")
         return
 
-    # 3. /start Command - Stylish Devil & Dangerous Opening
+    # 3. /start Command
     if text.startswith("/start"):
         devil_welcome = (
             "╭━━━〔 𝕯𝕰𝖁𝕴𝕷 𝕮𝕷𝕴𝕹𝕴𝕮 〕━━━╮\n"
@@ -163,7 +165,7 @@ def handle_all_messages(message):
             "👑 **Architect & Lord:** `@itz_rohit_rss`\n\n"
             "⚡ *Dawa bhi main doongi aur dard bhi...*\n"
             "Maut ka ilaaj dhoondhne aaye ho ya dil haarne? Sambhal kar rehna, yahan har saans par mera pehra hai. 🩸🖤\n\n"
-            "⚔️ **DEADLY WEAPONS / COMMANDS:**\n"
+            "⚔️️ **DEADLY WEAPONS / COMMANDS:**\n"
             "├ 💬 Direct AI Chat (Flirt ya Khatra)\n"
             "├ 🧩 `/q` - Dimag hilane wali Paheliyan\n"
             "├ 💰 `/rob` - Tijori Looto ya fine bharo\n"
@@ -181,7 +183,7 @@ def handle_all_messages(message):
         bot.reply_to(message, f"⚡ Mere ek laute Baap aur Creator **@{OWNER_USERNAME}** hain! Unke samne sab jhukte hain. 👑💀", parse_mode="Markdown")
         return
 
-    # 5. /q Command (Unique Riddle without repeats)
+    # 5. /q Command
     if text.startswith("/q") or text.startswith("/Q"):
         asked_data = load_json(RIDDLES_TRACK_FILE)
         asked_indices = asked_data.get(chat_id, [])
@@ -358,7 +360,7 @@ def handle_all_messages(message):
         )
         return
 
-    # 14. AI Chatting (Groq Devil-Flirt Engine)
+    # 14. AI Chatting
     is_private = message.chat.type == "private"
     is_reply_to_bot = bool(message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id)
     bot_called = any(name in text_lower for name in ["doctor", "miss doctor", "bot", "babu", "baby", "devil"])
