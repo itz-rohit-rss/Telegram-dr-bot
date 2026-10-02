@@ -6,7 +6,7 @@ import telebot
 from flask import Flask
 
 # ----------------- CONFIGURATION -----------------
-BOT_TOKEN = "8814355727:AAH2tcXn3kUYbHhWs1PvVEGGDXbW7UgEPjg"
+BOT_TOKEN = "8814355727:AAG7c-0teGiljwKq-liqCws1AoGGzH1feZY"
 GEMINI_API_KEY = "AQ.Ab8RN6Ii6xTKce13KWXTvvIGovgkbVixDckeT_rbY84mjtQt5w"
 OWNER_USERNAME = "itz_rohit_rss"
 
@@ -93,7 +93,7 @@ def handle_all_messages(message):
         return
 
     if text_lower in ["/owner", "owner kaun hai", "who is owner", "owner", "admin"]:
-        bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️")
+        bot.reply_to(message, f"Mere owner aur creator @{OWNER_USERNAME} hain! ❤️️")
         return
 
     if text.startswith("/broadcast") or text.startswith("/Broadcast"):
@@ -152,6 +152,6 @@ def start_polling():
 if __name__ == "__main__":
     # Telegram bot background thread me chalega
     threading.Thread(target=start_polling, daemon=True).start()
-    # Flask port bind turant karega taaki Render timeout na de
+    # Flask port bind karega Render deployment ke liye
     run_web()
-        
+    
